@@ -1,9 +1,6 @@
 module Main where
 
-import Text.Parsec.String (Parser)
-import Text.Parsec.Combinator (many1, skipMany1)
-import Text.ParserCombinators.Parsec hiding (many, State)
-import Text.Parsec.Char (digit, oneOf, char)
+import Text.ParserCombinators.Parsec hiding (State)
 import Control.Monad (void)
 import Control.Monad.State
 
