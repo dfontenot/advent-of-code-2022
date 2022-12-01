@@ -18,9 +18,7 @@ integerLine = do
   return int_
 
 calories :: Parser [Integer]
-calories = do
-  lines_ <- manyTill integerLine (try (char '\n'))
-  return lines_
+calories = manyTill integerLine (try (choice [eof, void (char '\n')]))
 
 caloriesFile :: Parser Parsed
 --caloriesFile = calories `sepBy` char '\n'
@@ -31,6 +29,7 @@ parseInput = parse caloriesFile "day1-part1.txt" -- 2nd arg is just the filename
 
 main :: IO ()
 main = do
+  putStrLn "go"
   fileInput <- readFile "./data/day1-part1.txt"
   let parsed = parseInput fileInput in
       case parsed of
