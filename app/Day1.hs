@@ -5,8 +5,10 @@ import Text.Parsec.Combinator (many1, skipMany1)
 import Text.ParserCombinators.Parsec hiding (many, State)
 import Text.Parsec.Char (digit, oneOf, char)
 import Control.Monad (void)
+import Control.Monad.State
 
 type Parsed = [[Integer]]
+type TopThreeState = (Integer, Integer, Integer)
 
 integer :: Parser Integer
 integer = read <$> many1 digit
@@ -31,11 +33,37 @@ mostCalories parsed = largest $ map sum parsed
   where
     largest = foldr max 0
 
+topThreeCalories :: [Integer] -> State TopThreeState TopThreeState
+topThreeCalories [] = get
+topThreeCalories (x:xs) = do
+  (top, second, third) <- get
+  put $ update x top second third
+  topThreeCalories xs
+    where
+      update x_ top second _ | x_ > top = (x_, top, second)
+      update x_ top second _ | x_ > second = (top, x_, second)
+      update x_ top second third | x_ > third = (top, second, x_)
+      update _ top second third = (top, second, third)
+
+runTopThreeCalories :: Parsed -> Integer
+runTopThreeCalories parsed = sumTriple $ evalState (topThreeCalories (map sum parsed)) (0, 0, 0)
+  where
+    sumTriple (x, y, z) = x + y + z
+
+mainPart1 :: IO ()
+mainPart1 = do
+  putStrLn "go"
+  fileInput <- readFile "./data/day1-part1.txt"
+  let parsed = parseInput fileInput in
+      case parsed of
+        Right result -> print $ mostCalories result
+        Left err -> print err
+
 main :: IO ()
 main = do
   putStrLn "go"
   fileInput <- readFile "./data/day1-part1.txt"
   let parsed = parseInput fileInput in
       case parsed of
-        Right result -> print $ mostCalories result
+        Right result -> print $ runTopThreeCalories result
         Left err -> print err
