@@ -54,12 +54,12 @@ extra-doc-files:    CHANGELOG.md
 common warnings
     ghc-options: -Wall
 
-executable advent-of-code-2022
+executable day1
     -- Import common warning flags.
     import:           warnings
 
     -- .hs or .lhs file containing the Main module.
-    main-is:          Main.hs
+    main-is:          Day1.hs
 
     -- Modules included in this executable, other than Main.
     -- other-modules:
@@ -68,7 +68,7 @@ executable advent-of-code-2022
     -- other-extensions:
 
     -- Other library packages from which modules are imported.
-    build-depends:    base ^>=4.16.3.0
+    build-depends:    base ^>=4.16.3.0, parsec == 3.1.*
 
     -- Directories containing source files.
     hs-source-dirs:   app
