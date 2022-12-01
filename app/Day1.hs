@@ -21,11 +21,15 @@ calories :: Parser [Integer]
 calories = manyTill integerLine (try (choice [eof, void (char '\n')]))
 
 caloriesFile :: Parser Parsed
---caloriesFile = calories `sepBy` char '\n'
 caloriesFile = manyTill calories (try (choice [eof, void (char '\n')]))
 
 parseInput :: String -> Either ParseError Parsed
 parseInput = parse caloriesFile "day1-part1.txt" -- 2nd arg is just the filename to use in parseerror s
+
+mostCalories :: Parsed -> Integer
+mostCalories parsed = largest $ map sum parsed
+  where
+    largest = foldr max 0
 
 main :: IO ()
 main = do
@@ -33,5 +37,5 @@ main = do
   fileInput <- readFile "./data/day1-part1.txt"
   let parsed = parseInput fileInput in
       case parsed of
-        Right result -> print result
+        Right result -> print $ mostCalories result
         Left err -> print err
