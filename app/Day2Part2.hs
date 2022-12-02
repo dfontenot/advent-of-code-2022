@@ -4,9 +4,11 @@ import Text.ParserCombinators.Parsec hiding (State)
 import Control.Monad (void)
 
 data RoundResult = Win | Lose | Draw
+type DesiredResult = RoundResult
 data RPC = Rock | Paper | Scissors
+type FixedRound = (RPC, DesiredResult)
 type Round = (RPC, RPC)
-type Parsed = [Round]
+type Parsed = [FixedRound]
 
 opponentMove :: Parser RPC
 opponentMove = do
@@ -18,28 +20,43 @@ opponentMove = do
       translateMove 'C' = Scissors
       translateMove _ = error "opponent move parse fail"
 
-yourMove :: Parser RPC
-yourMove = do
-  move <- choice [char 'X', char 'Y', char 'Z']
-  return $ translateMove move
+desiredResult :: Parser DesiredResult
+desiredResult = do
+  result <- choice [char 'X', char 'Y', char 'Z']
+  return $ translateResult result
     where
-      translateMove 'X' = Rock
-      translateMove 'Y' = Paper
-      translateMove 'Z' = Scissors
-      translateMove _ = error "your move parse fail"
+      translateResult 'X' = Lose
+      translateResult 'Y' = Draw
+      translateResult 'Z' = Win
+      translateResult _ = error "desired parse fail"
 
-rpcLine :: Parser Round
+rpcLine :: Parser FixedRound
 rpcLine = do
   opponent <- opponentMove
   void $ many1 $ char ' '
-  yours <- yourMove
+  yours <- desiredResult
   return (opponent, yours)
 
 rpcFile :: Parser Parsed
 rpcFile = rpcLine `endBy1` char '\n'
 
 parseInput :: String -> Either ParseError Parsed
-parseInput = parse rpcFile "day2-part1.txt" -- 2nd arg is just the filename to use in parseerror s
+parseInput = parse rpcFile "day2.txt" -- 2nd arg is just the filename to use in parseerror s
+
+winsAgainst :: RPC -> RPC
+winsAgainst Rock = Paper
+winsAgainst Paper = Scissors
+winsAgainst Scissors = Rock
+
+losesAgainst :: RPC -> RPC
+losesAgainst Rock = Scissors
+losesAgainst Paper = Rock
+losesAgainst Scissors = Paper
+
+fixedRoundToRound :: FixedRound -> Round
+fixedRoundToRound (opponent, Win) = (opponent, winsAgainst opponent)
+fixedRoundToRound (opponent, Lose) = (opponent, losesAgainst opponent)
+fixedRoundToRound (opponent, Draw) = (opponent, opponent)
 
 -- TODO: better way...
 roundResult :: Round -> RoundResult
@@ -66,14 +83,14 @@ roundScore result rpc = let moveScore = rpcMoveScore rpc in
                               Lose -> moveScore
 
 totalScore :: Parsed -> Integer
-totalScore moves = sum $ map roundScore' moves
+totalScore moves = sum $ map (roundScore' . fixedRoundToRound) moves
   where
     roundScore' (opponent, yours) = roundScore (roundResult (opponent, yours)) yours
 
 main :: IO ()
 main = do
   putStrLn "go"
-  fileInput <- readFile "./data/day2-part1.txt"
+  fileInput <- readFile "./data/day2.txt"
   let parsed = parseInput fileInput in
       case parsed of
         Right result -> print $ totalScore result

@@ -39,7 +39,7 @@ rpcFile :: Parser Parsed
 rpcFile = rpcLine `endBy1` char '\n'
 
 parseInput :: String -> Either ParseError Parsed
-parseInput = parse rpcFile "day2-part1.txt" -- 2nd arg is just the filename to use in parseerror s
+parseInput = parse rpcFile "day2.txt" -- 2nd arg is just the filename to use in parseerror s
 
 -- TODO: better way...
 roundResult :: Round -> RoundResult
@@ -73,7 +73,7 @@ totalScore moves = sum $ map roundScore' moves
 main :: IO ()
 main = do
   putStrLn "go"
-  fileInput <- readFile "./data/day2-part1.txt"
+  fileInput <- readFile "./data/day2.txt"
   let parsed = parseInput fileInput in
       case parsed of
         Right result -> print $ totalScore result
