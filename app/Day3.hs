@@ -1,8 +1,10 @@
 module Main where
 
 import qualified Data.Set as Set
+import Data.List (uncons)
 import Data.Char (ord, isUpper, isLower)
 import Data.Maybe (fromJust)
+import Data.List.Split (chunksOf)
 
 splitHalf :: String -> Maybe (String, String)
 splitHalf input = let strLen = length input in
@@ -18,14 +20,35 @@ commonItems str = intersection' <$> splitHalf str
   where
     intersection' (left, right) = Set.elems $ Set.fromList left `Set.intersection` Set.fromList right
 
+itemPriority :: Char -> Int
+itemPriority char | isUpper char = ord char - 38 -- ASCII codes
+itemPriority char | isLower char = ord char - 96
+itemPriority _ = error "bad character"
+
 itemPriorities :: String -> Maybe [Int]
-itemPriorities str = map lookupPriority <$> commonItems str
+itemPriorities str = map itemPriority <$> commonItems str
+
+part1Main :: IO ()
+part1Main = do
+  file <- readFile "./data/day3.txt"
+  print $ sum $ map (sum . fromJust . itemPriorities) $ lines file
+
+-- NOTE: way easier way to write this
+maybeHead :: [a] -> Maybe a
+maybeHead lst = onlyHead <$> uncons lst
   where
-    lookupPriority char | isUpper char = ord char - 38 -- ASCII codes
-    lookupPriority char | isLower char = ord char - 96
-    lookupPriority _ = error "bad character"
+    onlyHead (head', _) = head'
+
+threeWayIntersection :: (Ord a) => Set.Set a -> Set.Set a -> Set.Set a -> Set.Set a
+threeWayIntersection a b c = (a `Set.intersection` b) `Set.intersection` c
+
+chunkCommon :: [String] -> Maybe Char
+chunkCommon chunk = chunkCommon' $ Set.fromList <$> chunk
+  where
+    chunkCommon' [x,y,z] = maybeHead $ Set.elems $ threeWayIntersection x y z
+    chunkCommon' _ = error "chunk size does not match"
 
 main :: IO ()
 main = do
   file <- readFile "./data/day3.txt"
-  print $ sum $ map (sum . fromJust . itemPriorities) $ lines file
+  print $ sum $ map (itemPriority . fromJust . chunkCommon) $ chunksOf 3 $ lines file
