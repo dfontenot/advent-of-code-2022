@@ -31,11 +31,14 @@ assignmentFile = assignmentLine `endBy1` char '\n'
 parseInput :: String -> Either ParseError Parsed
 parseInput = parse assignmentFile "day4.txt" -- 2nd arg is just the filename to use in parseerror s
 
+fullyConsumed :: ElfPairAssignments -> Bool
+fullyConsumed (lhs, rhs) = lhs `isSubsetOf` rhs || rhs `isSubsetOf` lhs
+
 main :: IO ()
 main = do
   putStrLn "go"
   fileInput <- readFile "./data/day4.txt"
   let parsed = parseInput fileInput in
       case parsed of
-        Right result -> print result
+        Right result -> print $ length $ filter fullyConsumed result
         Left err -> print err
