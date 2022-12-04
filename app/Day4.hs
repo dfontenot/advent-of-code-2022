@@ -3,6 +3,7 @@ module Main where
 import Text.ParserCombinators.Parsec hiding (State)
 import Control.Monad (void)
 import Data.Interval
+import Data.IntervalRelation
 
 type SectionAssignment = Interval Integer
 type ElfPairAssignments = (SectionAssignment, SectionAssignment)
@@ -34,11 +35,17 @@ parseInput = parse assignmentFile "day4.txt" -- 2nd arg is just the filename to 
 fullyConsumed :: ElfPairAssignments -> Bool
 fullyConsumed (lhs, rhs) = lhs `isSubsetOf` rhs || rhs `isSubsetOf` lhs
 
+anyOverlap :: ElfPairAssignments -> Bool
+anyOverlap (lhs, rhs) = case relate lhs rhs of
+                          Before -> False
+                          After -> False
+                          _ -> True
+
 main :: IO ()
 main = do
   putStrLn "go"
   fileInput <- readFile "./data/day4.txt"
   let parsed = parseInput fileInput in
       case parsed of
-        Right result -> print $ length $ filter fullyConsumed result
+        Right result -> print $ length $ filter anyOverlap result
         Left err -> print err
