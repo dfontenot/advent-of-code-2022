@@ -43,7 +43,7 @@ parseHeaderLine = do
     ' ' -> do
       nextCrate <- parseHeaderLine
       return (crate:nextCrate)
-    '\n' -> return []
+    '\n' -> return [crate]
     _ -> unexpected "unexpected char when reading header line"
 
 parseHeader :: Parser Header
@@ -81,7 +81,9 @@ postProcessHeaderLine = zipWith zipper
     zipper Nothing line = line
 
 initialStacks :: [[Crate]] -> V.Vector String
-initialStacks stacks = let numStacks = length stacks in
+initialStacks [] = V.fromList [[]]
+initialStacks [[]] = V.fromList [[]]
+initialStacks stacks = let numStacks = length (head stacks) in
                            V.fromList $ foldr postProcessHeaderLine (replicate numStacks []) stacks
 
 initialGamestate :: Parsed -> Gamestate
