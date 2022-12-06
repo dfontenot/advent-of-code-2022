@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 module Main where
 
 import Text.ParserCombinators.Parsec hiding (State)
@@ -105,11 +106,16 @@ takeLast n lst' = takeLast' n (length lst') lst'
     takeLast' n' len lst | n' >= len = lst
     takeLast' n' len lst = takeLast' (n'-1) len (tail lst)
 
--- simulateCrane :: Gamestate -> String
--- simulateCrane (Gamestate _ []) = "TODO"
--- simulateCrane (Gamestate stacks (x:xs)) = simulateCrane (Gamestate (newStacks stacks x) xs)
---   where
---     newStacks stacks (CreateMove numCrates sourceCrate destCrate) = _
+simulateCrane :: Gamestate -> String
+simulateCrane (Gamestate _ []) = "TODO"
+simulateCrane (Gamestate stacks' (x:xs)) = simulateCrane (Gamestate (newStacks stacks' x) xs)
+  where newStacks :: V.Vector String -> Command -> V.Vector String
+        newStacks _ (CreateMove _ _ _) = error "TODO: support for regular moves not implemented yet"
+        newStacks stacks (SimpleMove sourceStackIdx' destStackIdx') = let sourceStackIdx = fromIntegral $ sourceStackIdx' - 1 in
+                                                                          let destStackIdx = fromIntegral $ destStackIdx' - 1 in
+                                                                              let sourceStack = stacks V.! sourceStackIdx in
+                                                                                  let destStack = stacks V.! destStackIdx in
+                                                                                      stacks V.// [(sourceStackIdx, tail sourceStack), (destStackIdx, destStack ++ [head sourceStack])]
 
 main :: IO ()
 main = do
