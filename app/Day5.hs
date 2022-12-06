@@ -10,7 +10,8 @@ type Crate = Maybe Char
 type Header = [[Crate]]
 data Command = CreateMove Integer Integer Integer | SimpleMove Integer Integer
 data Parsed = Parsed Header [Command]
-data Gamestate = Gamestate (V.Vector String) [Command]
+type Stacks = V.Vector String
+data Gamestate = Gamestate Stacks [Command]
 
 instance Show Command where
   show (CreateMove num source dest) = "<Command num=" ++ show num ++ " src=" ++ show source ++ " dest=" ++ show dest ++ ">"
@@ -106,10 +107,11 @@ takeLast n lst' = takeLast' n (length lst') lst'
     takeLast' n' len lst | n' >= len = lst
     takeLast' n' len lst = takeLast' (n'-1) len (tail lst)
 
-simulateCrane :: Gamestate -> String
-simulateCrane (Gamestate _ []) = "TODO"
+simulateCrane :: Gamestate -> Stacks
+--simulateCrane (Gamestate stacks []) = V.toList $ V.map last stacks
+simulateCrane (Gamestate stacks []) = stacks
 simulateCrane (Gamestate stacks' (x:xs)) = simulateCrane (Gamestate (newStacks stacks' x) xs)
-  where newStacks :: V.Vector String -> Command -> V.Vector String
+  where newStacks :: Stacks -> Command -> Stacks
         newStacks _ (CreateMove _ _ _) = error "TODO: support for regular moves not implemented yet"
         newStacks stacks (SimpleMove sourceStackIdx' destStackIdx') = let sourceStackIdx = fromIntegral $ sourceStackIdx' - 1 in
                                                                           let destStackIdx = fromIntegral $ destStackIdx' - 1 in
@@ -123,5 +125,5 @@ main = do
   fileInput <- readFile "./data/day5.txt"
   let parsed = parseInput fileInput in
       case parsed of
-        Right result -> print $ initialGamestate result
+        Right result -> print $ simulateCrane $ initialGamestate result
         Left err -> print err
