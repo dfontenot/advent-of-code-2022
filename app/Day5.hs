@@ -108,7 +108,6 @@ takeLast n lst' = takeLast' n (length lst') lst'
     takeLast' n' len lst = takeLast' (n'-1) len (tail lst)
 
 simulateCrane :: Gamestate -> Stacks
---simulateCrane (Gamestate stacks []) = V.toList $ V.map last stacks
 simulateCrane (Gamestate stacks []) = stacks
 simulateCrane (Gamestate stacks' (x:xs)) = simulateCrane (Gamestate (newStacks stacks' x) xs)
   where newStacks :: Stacks -> Command -> Stacks
@@ -119,11 +118,14 @@ simulateCrane (Gamestate stacks' (x:xs)) = simulateCrane (Gamestate (newStacks s
                                                                                   let destStack = stacks V.! destStackIdx in
                                                                                       stacks V.// [(sourceStackIdx, tail sourceStack), (destStackIdx, destStack ++ [head sourceStack])]
 
+part1Answer :: Stacks -> String
+part1Answer stacks = V.toList $ V.map last stacks
+
 main :: IO ()
 main = do
   putStrLn "go"
   fileInput <- readFile "./data/day5.txt"
   let parsed = parseInput fileInput in
       case parsed of
-        Right result -> print $ simulateCrane $ initialGamestate result
+        Right result -> print $ part1Answer $ simulateCrane $ initialGamestate result
         Left err -> print err
