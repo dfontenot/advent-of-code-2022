@@ -3,11 +3,13 @@ module Main where
 import Text.ParserCombinators.Parsec hiding (State)
 import Control.Monad (void)
 import Control.Monad.State
+import qualified Data.Vector as V
 
 type Crate = Maybe Char
 type Header = [[Crate]]
 data Command = CreateMove Integer Integer Integer
 data Parsed = Parsed Header [Command]
+data Gamestate = Gamestate (V.Vector String) [Command]
 
 instance Show Command where
   show (CreateMove num source dest) = "<Command num=" ++ show num ++ " src=" ++ show source ++ " dest=" ++ show dest
@@ -68,6 +70,18 @@ commandsFile = do
 
 parseInput :: String -> Either ParseError Parsed
 parseInput = parse commandsFile "day5.txt"
+
+postProcessHeaderLine :: [Crate] -> [String] -> [String]
+postProcessHeaderLine = zipWith zipper
+  where
+    zipper (Just c) line = c:line
+    zipper Nothing line = line
+
+initialStacks :: [[Crate]] -> V.Vector String
+initialStacks stacks = let numStacks = length stacks in V.fromList $ foldr postProcessHeaderLine (replicate numStacks []) stacks
+
+initialGamestate :: Parsed -> Gamestate
+initialGamestate (Parsed header commands) = Gamestate (initialStacks header) commands
 
 main :: IO ()
 main = do
