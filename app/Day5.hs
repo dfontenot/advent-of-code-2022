@@ -7,18 +7,19 @@ import qualified Data.Vector as V
 
 type Crate = Maybe Char
 type Header = [[Crate]]
-data Command = CreateMove Integer Integer Integer
+data Command = CreateMove Integer Integer Integer | SimpleMove Integer Integer
 data Parsed = Parsed Header [Command]
 data Gamestate = Gamestate (V.Vector String) [Command]
 
 instance Show Command where
-  show (CreateMove num source dest) = "<Command num=" ++ show num ++ " src=" ++ show source ++ " dest=" ++ show dest
+  show (CreateMove num source dest) = "<Command num=" ++ show num ++ " src=" ++ show source ++ " dest=" ++ show dest ++ ">"
+  show (SimpleMove source dest) = "<Command src=" ++ show source ++ " dest=" ++ show dest ++ ">"
 
 instance Show Parsed where
-  show (Parsed header commands) = "<Parsed header=" ++ show header ++ " cmds=" ++ show commands
+  show (Parsed header commands) = "<Parsed header=" ++ show header ++ " cmds=" ++ show commands ++ ">"
 
 instance Show Gamestate where
-  show (Gamestate stacks commands) = "<Gamestate stacks=" ++ show stacks ++ " cmds=" ++ show commands
+  show (Gamestate stacks commands) = "<Gamestate stacks=" ++ show stacks ++ " cmds=" ++ show commands ++ ">"
 
 integer :: Parser Integer
 integer = read <$> many1 digit
@@ -74,6 +75,11 @@ commandsFile = do
 parseInput :: String -> Either ParseError Parsed
 parseInput = parse commandsFile "day5.txt"
 
+simplifyMoves :: [Command] -> [Command]
+simplifyMoves [] = []
+simplifyMoves ((SimpleMove src dest):xs) = SimpleMove src dest:simplifyMoves xs
+simplifyMoves ((CreateMove num src dest):xs) = replicate (fromIntegral num) (SimpleMove src dest) ++ simplifyMoves xs
+
 postProcessHeaderLine :: [Crate] -> [String] -> [String]
 postProcessHeaderLine = zipWith zipper
   where
@@ -87,7 +93,23 @@ initialStacks stacks = let numStacks = length (head stacks) in
                            V.fromList $ foldr postProcessHeaderLine (replicate numStacks []) stacks
 
 initialGamestate :: Parsed -> Gamestate
-initialGamestate (Parsed header commands) = Gamestate (initialStacks header) commands
+initialGamestate (Parsed header commands) = Gamestate (initialStacks header) (simplifyMoves commands)
+
+-- TODO: shorter?
+takeLast :: Int -> [a] -> [a]
+takeLast 0 _ = []
+takeLast n _ | n < 0 = error "no"
+takeLast n lst' = takeLast' n (length lst') lst'
+  where
+    takeLast' 0 _ lst = lst
+    takeLast' n' len lst | n' >= len = lst
+    takeLast' n' len lst = takeLast' (n'-1) len (tail lst)
+
+-- simulateCrane :: Gamestate -> String
+-- simulateCrane (Gamestate _ []) = "TODO"
+-- simulateCrane (Gamestate stacks (x:xs)) = simulateCrane (Gamestate (newStacks stacks x) xs)
+--   where
+--     newStacks stacks (CreateMove numCrates sourceCrate destCrate) = _
 
 main :: IO ()
 main = do
