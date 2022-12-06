@@ -17,6 +17,9 @@ instance Show Command where
 instance Show Parsed where
   show (Parsed header commands) = "<Parsed header=" ++ show header ++ " cmds=" ++ show commands
 
+instance Show Gamestate where
+  show (Gamestate stacks commands) = "<Gamestate stacks=" ++ show stacks ++ " cmds=" ++ show commands
+
 integer :: Parser Integer
 integer = read <$> many1 digit
 
@@ -74,11 +77,12 @@ parseInput = parse commandsFile "day5.txt"
 postProcessHeaderLine :: [Crate] -> [String] -> [String]
 postProcessHeaderLine = zipWith zipper
   where
-    zipper (Just c) line = c:line
+    zipper (Just c) line = line ++ [c]
     zipper Nothing line = line
 
 initialStacks :: [[Crate]] -> V.Vector String
-initialStacks stacks = let numStacks = length stacks in V.fromList $ foldr postProcessHeaderLine (replicate numStacks []) stacks
+initialStacks stacks = let numStacks = length stacks in
+                           V.fromList $ foldr postProcessHeaderLine (replicate numStacks []) stacks
 
 initialGamestate :: Parsed -> Gamestate
 initialGamestate (Parsed header commands) = Gamestate (initialStacks header) commands
@@ -89,5 +93,5 @@ main = do
   fileInput <- readFile "./data/day5.txt"
   let parsed = parseInput fileInput in
       case parsed of
-        Right result -> print result
+        Right result -> print $ initialGamestate result
         Left err -> print err
