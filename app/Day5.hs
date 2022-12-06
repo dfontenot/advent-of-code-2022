@@ -31,7 +31,6 @@ parseEmptySpot = do
   return Nothing
 
 parseHeaderLine :: Parser [Crate]
---parseHeaderLine = manyTill (choice [parseCrate, parseEmptySpot]) (try newline)
 parseHeaderLine = do
   crate <- choice [parseCrate, parseEmptySpot]
   nextChar <- oneOf " \n"
@@ -41,14 +40,6 @@ parseHeaderLine = do
       return (crate:nextCrate)
     '\n' -> return []
     _ -> unexpected "unexpected char when reading header line"
-  -- nextChar <- lookAhead $ oneOf " \n"
-  -- case nextChar of
-  --   ' ' -> do
-  --     void $ char ' '
-  --     nextCrate <- parseHeaderLine
-  --     return (crate:nextCrate)
-  --   '\n' -> return []
-  --   _ -> unexpected "unexpected char when reading header line"
 
 parseHeader :: Parser Header
 parseHeader = do
