@@ -98,6 +98,7 @@ initialGamestate :: Parsed -> Gamestate
 initialGamestate (Parsed header commands) = Gamestate (initialStacks header) (simplifyMoves commands)
 
 -- TODO: shorter?
+-- TODO: impl is incorrect
 takeLast :: Int -> [a] -> [a]
 takeLast 0 _ = []
 takeLast n _ | n < 0 = error "no"
@@ -106,6 +107,16 @@ takeLast n lst' = takeLast' n (length lst') lst'
     takeLast' 0 _ lst = lst
     takeLast' n' len lst | n' >= len = lst
     takeLast' n' len lst = takeLast' (n'-1) len (tail lst)
+
+dropLast :: [a] -> [a]
+dropLast [] = error "can't drop anymore"
+dropLast [_] = []
+dropLast lst = dropLast' lst
+  where
+    dropLast' [] = error "also no"
+    dropLast' [_] = []
+    dropLast' [x, _] = [x]
+    dropLast' (x:xs) = x:dropLast' xs
 
 simulateCrane :: Gamestate -> Stacks
 simulateCrane (Gamestate stacks []) = stacks
@@ -116,7 +127,7 @@ simulateCrane (Gamestate stacks' (x:xs)) = simulateCrane (Gamestate (newStacks s
                                                                           let destStackIdx = fromIntegral $ destStackIdx' - 1 in
                                                                               let sourceStack = stacks V.! sourceStackIdx in
                                                                                   let destStack = stacks V.! destStackIdx in
-                                                                                      stacks V.// [(sourceStackIdx, tail sourceStack), (destStackIdx, destStack ++ [head sourceStack])]
+                                                                                      stacks V.// [(sourceStackIdx, dropLast sourceStack), (destStackIdx, destStack ++ [last sourceStack])]
 
 part1Answer :: Stacks -> String
 part1Answer stacks = V.toList $ V.map last stacks
