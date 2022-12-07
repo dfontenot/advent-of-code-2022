@@ -85,7 +85,7 @@ simplifyMoves ((CreateMove num src dest):xs) = replicate (fromIntegral num) (Sim
 postProcessHeaderLine :: [Crate] -> [String] -> [String]
 postProcessHeaderLine = zipWith zipper
   where
-    zipper (Just c) line = line ++ [c]
+    zipper (Just c) line = c:line
     zipper Nothing line = line
 
 initialStacks :: [[Crate]] -> V.Vector String
@@ -118,6 +118,7 @@ dropLast lst = dropLast' lst
     dropLast' [x, _] = [x]
     dropLast' (x:xs) = x:dropLast' xs
 
+-- solution: RNZLFZSJH
 simulateCrane :: Gamestate -> Stacks
 simulateCrane (Gamestate stacks []) = stacks
 simulateCrane (Gamestate stacks' (x:xs)) = simulateCrane (Gamestate (newStacks stacks' x) xs)
@@ -127,10 +128,21 @@ simulateCrane (Gamestate stacks' (x:xs)) = simulateCrane (Gamestate (newStacks s
                                                                           let destStackIdx = fromIntegral $ destStackIdx' - 1 in
                                                                               let sourceStack = stacks V.! sourceStackIdx in
                                                                                   let destStack = stacks V.! destStackIdx in
-                                                                                      stacks V.// [(sourceStackIdx, dropLast sourceStack), (destStackIdx, destStack ++ [last sourceStack])]
+                                                                                      stacks V.// [(sourceStackIdx, tail sourceStack), (destStackIdx, (head sourceStack):destStack)]
+
+-- simulateCrane9001 :: Gamestate -> Stacks
+-- simulateCrane9001 (Gamestate stacks []) = stacks
+-- simulateCrane9001 (Gamestate stacks' (x:xs)) = simulateCrane (Gamestate (newStacks stacks' x) xs)
+--   where newStacks :: Stacks -> Command -> Stacks
+--         newStacks stacks (SimpleMove sourceStackIdx' destStackIdx') = newStacks stacks (CreateMove 1 sourceStackIdx' destStackIdx')
+--         newStacks stacks (CreateMove numCrates sourceStackIdx' destStackIdx') = let sourceStackIdx = fromIntegral $ sourceStackIdx' - 1 in
+--                                                                           let destStackIdx = fromIntegral $ destStackIdx' - 1 in
+--                                                                               let sourceStack = stacks V.! sourceStackIdx in
+--                                                                                   let destStack = stacks V.! destStackIdx in
+--                                                                                       stacks V.// [(sourceStackIdx, takeLast numCrates sourceStack), (destStackIdx, destStack ++ [last sourceStack])]
 
 part1Answer :: Stacks -> String
-part1Answer stacks = V.toList $ V.map last stacks
+part1Answer stacks = V.toList $ V.map head stacks
 
 main :: IO ()
 main = do
@@ -139,4 +151,5 @@ main = do
   let parsed = parseInput fileInput in
       case parsed of
         Right result -> print $ part1Answer $ simulateCrane $ initialGamestate result
+        --Right result -> print $ initialGamestate result
         Left err -> print err
