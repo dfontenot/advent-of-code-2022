@@ -48,7 +48,7 @@ lsEntity = do
 
 -- TODO: handle EOF
 lsOutput :: Parser [Entity]
-lsOutput = lsEntity `manyTill` lookAhead (newline >> char '$')
+lsOutput = lsEntity `manyTill` try (newline >> char '$')
 -- lsOutput = do
 --   entities <- lsEntity `manyTill` lookAhead (newline >> char '$')
 --   void newline
