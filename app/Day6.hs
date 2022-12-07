@@ -7,7 +7,7 @@ type ProcessingState = (Int, String)
 
 -- how many chars in a row that must be unique
 numOfUnique :: Int
-numOfUnique = 4
+numOfUnique = 14 -- 14 for part 2, 4 for part 1
 
 unique :: String -> Bool
 unique [] = True
@@ -20,8 +20,8 @@ uniqueScan (x:xs) = do
   (pos, window) <- get
   case unique window of
     True -> return $ Just pos
-    False -> let newWindow = (tail window) ++ [x] in
-                 (put (pos + 1, newWindow)) >> uniqueScan xs
+    False -> let newWindow = tail window ++ [x] in
+                 put (pos + 1, newWindow) >> uniqueScan xs
 
 runScan :: String -> Maybe Int
 runScan str | length str < numOfUnique = Nothing
