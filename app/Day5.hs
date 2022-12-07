@@ -94,8 +94,11 @@ initialStacks [[]] = V.fromList [[]]
 initialStacks stacks = let numStacks = length (head stacks) in
                            V.fromList $ foldr postProcessHeaderLine (replicate numStacks []) stacks
 
-initialGamestate :: Parsed -> Gamestate
-initialGamestate (Parsed header commands) = Gamestate (initialStacks header) (simplifyMoves commands)
+initialGamestate9000 :: Parsed -> Gamestate
+initialGamestate9000 (Parsed header commands) = Gamestate (initialStacks header) (simplifyMoves commands)
+
+initialGamestate9001 :: Parsed -> Gamestate
+initialGamestate9001 (Parsed header commands) = Gamestate (initialStacks header) commands
 
 -- TODO: shorter?
 -- TODO: impl is incorrect
@@ -130,19 +133,20 @@ simulateCrane (Gamestate stacks' (x:xs)) = simulateCrane (Gamestate (newStacks s
                                                                                   let destStack = stacks V.! destStackIdx in
                                                                                       stacks V.// [(sourceStackIdx, tail sourceStack), (destStackIdx, (head sourceStack):destStack)]
 
--- simulateCrane9001 :: Gamestate -> Stacks
--- simulateCrane9001 (Gamestate stacks []) = stacks
--- simulateCrane9001 (Gamestate stacks' (x:xs)) = simulateCrane (Gamestate (newStacks stacks' x) xs)
---   where newStacks :: Stacks -> Command -> Stacks
---         newStacks stacks (SimpleMove sourceStackIdx' destStackIdx') = newStacks stacks (CreateMove 1 sourceStackIdx' destStackIdx')
---         newStacks stacks (CreateMove numCrates sourceStackIdx' destStackIdx') = let sourceStackIdx = fromIntegral $ sourceStackIdx' - 1 in
---                                                                           let destStackIdx = fromIntegral $ destStackIdx' - 1 in
---                                                                               let sourceStack = stacks V.! sourceStackIdx in
---                                                                                   let destStack = stacks V.! destStackIdx in
---                                                                                       stacks V.// [(sourceStackIdx, takeLast numCrates sourceStack), (destStackIdx, destStack ++ [last sourceStack])]
+simulateCrane9001 :: Gamestate -> Stacks
+simulateCrane9001 (Gamestate stacks []) = stacks
+simulateCrane9001 (Gamestate stacks' (x:xs)) = simulateCrane9001 (Gamestate (newStacks stacks' x) xs)
+  where newStacks :: Stacks -> Command -> Stacks
+        newStacks stacks (SimpleMove sourceStackIdx' destStackIdx') = newStacks stacks (CreateMove 1 sourceStackIdx' destStackIdx')
+        newStacks stacks (CreateMove numCrates sourceStackIdx' destStackIdx') = let sourceStackIdx = fromIntegral $ sourceStackIdx' - 1 in
+                                                                          let destStackIdx = fromIntegral $ destStackIdx' - 1 in
+                                                                              let sourceStack = stacks V.! sourceStackIdx in
+                                                                                  let destStack = stacks V.! destStackIdx in
+                                                                                      let numCrates' = fromIntegral numCrates in
+                                                                                        stacks V.// [(sourceStackIdx, drop numCrates' sourceStack), (destStackIdx, (take numCrates' sourceStack) ++ destStack)]
 
-part1Answer :: Stacks -> String
-part1Answer stacks = V.toList $ V.map head stacks
+topsOfStacks :: Stacks -> String
+topsOfStacks stacks = V.toList $ V.map head stacks
 
 main :: IO ()
 main = do
@@ -150,6 +154,6 @@ main = do
   fileInput <- readFile "./data/day5.txt"
   let parsed = parseInput fileInput in
       case parsed of
-        Right result -> print $ part1Answer $ simulateCrane $ initialGamestate result
-        --Right result -> print $ initialGamestate result
+        Right result -> print $ topsOfStacks $ simulateCrane9001 $ initialGamestate9001 result
+        --Right result -> print $ initialGamestate9000 result
         Left err -> print err
