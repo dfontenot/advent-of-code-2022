@@ -3,14 +3,18 @@ module Main where
 import Control.Monad.State
 import qualified Data.Set as Set
 
-type ProcessingState = (Integer, String)
+type ProcessingState = (Int, String)
+
+-- how many chars in a row that must be unique
+numOfUnique :: Int
+numOfUnique = 4
 
 unique :: String -> Bool
 unique [] = True
 unique lst = let set = Set.fromList lst in
                  Set.size set == length lst
 
-uniqueScan :: String -> State ProcessingState (Maybe Integer)
+uniqueScan :: String -> State ProcessingState (Maybe Int)
 uniqueScan [] = return Nothing
 uniqueScan (x:xs) = do
   (pos, window) <- get
@@ -19,10 +23,10 @@ uniqueScan (x:xs) = do
     False -> let newWindow = (tail window) ++ [x] in
                  (put (pos + 1, newWindow)) >> uniqueScan xs
 
-runScan :: String -> Maybe Integer
-runScan str | length str < 4 = Nothing
-runScan str | length str == 4 = if unique str then Just 4 else Nothing
-runScan str = evalState (uniqueScan (drop 4 str)) (4, take 4 str)
+runScan :: String -> Maybe Int
+runScan str | length str < numOfUnique = Nothing
+runScan str | length str == numOfUnique = if unique str then Just numOfUnique else Nothing
+runScan str = evalState (uniqueScan (drop numOfUnique str)) (numOfUnique, take numOfUnique str)
 
 main :: IO ()
 main = do
