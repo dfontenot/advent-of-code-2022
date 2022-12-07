@@ -131,7 +131,7 @@ simulateCrane (Gamestate stacks' (x:xs)) = simulateCrane (Gamestate (newStacks s
                                                                           let destStackIdx = fromIntegral $ destStackIdx' - 1 in
                                                                               let sourceStack = stacks V.! sourceStackIdx in
                                                                                   let destStack = stacks V.! destStackIdx in
-                                                                                      stacks V.// [(sourceStackIdx, tail sourceStack), (destStackIdx, (head sourceStack):destStack)]
+                                                                                      stacks V.// [(sourceStackIdx, tail sourceStack), (destStackIdx, head sourceStack:destStack)]
 
 simulateCrane9001 :: Gamestate -> Stacks
 simulateCrane9001 (Gamestate stacks []) = stacks
@@ -143,7 +143,7 @@ simulateCrane9001 (Gamestate stacks' (x:xs)) = simulateCrane9001 (Gamestate (new
                                                                               let sourceStack = stacks V.! sourceStackIdx in
                                                                                   let destStack = stacks V.! destStackIdx in
                                                                                       let numCrates' = fromIntegral numCrates in
-                                                                                        stacks V.// [(sourceStackIdx, drop numCrates' sourceStack), (destStackIdx, (take numCrates' sourceStack) ++ destStack)]
+                                                                                        stacks V.// [(sourceStackIdx, drop numCrates' sourceStack), (destStackIdx, take numCrates' sourceStack ++ destStack)]
 
 topsOfStacks :: Stacks -> String
 topsOfStacks stacks = V.toList $ V.map head stacks
