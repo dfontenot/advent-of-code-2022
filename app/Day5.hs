@@ -3,7 +3,6 @@ module Main where
 
 import Text.ParserCombinators.Parsec hiding (State)
 import Control.Monad (void)
-import Control.Monad.State
 import qualified Data.Vector as V
 
 type Crate = Maybe Char
