@@ -61,7 +61,11 @@ lsEntity = do
 
 lsLastNewline :: Parser Bool
 --lsLastNewline = try (newline >> char '$' >> return True) <|> return False
-lsLastNewline = choice [eof >> return True, try (newline >> char '$' >> return True) <|> return False]
+--lsLastNewline = choice [eof >> return True, try (newline >> char '$' >> return True) <|> return False]
+lsLastNewline = do
+  void newline
+  -- TODO: super ugly, just choosing a random char for the fallback for the try, refactor to get rid of the need to do that
+  choice [eof >> return True, lookAhead (try (char '$') <|> return '^') >>= \char -> return (char == '$')]
 
 -- TODO: handle EOF
 lsOutput :: Parser [Entity]
