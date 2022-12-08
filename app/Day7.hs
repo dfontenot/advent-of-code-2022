@@ -1,13 +1,23 @@
+{-# LANGUAGE CPP #-}
 module Main where
 
 import Text.ParserCombinators.Parsec hiding (State)
 import Control.Monad (void)
+import Debug.Trace
 import Data.Tree
 import Data.List
 
 -- used for parsing only
 data CommandName = ChangeDir | ListDir
 data EntityStartToken = DirToken | FileSizeToken Int
+
+instance Show CommandName where
+  show ChangeDir = "cd"
+  show ListDir = "ls"
+
+instance Show EntityStartToken where
+  show DirToken = "dir"
+  show (FileSizeToken size) = show size
 
 -- used to construct the final tree
 data CdDirection = Up | GoToRoot | Down String
@@ -40,15 +50,34 @@ lsEntityStart = choice [parseDir, parseFileSize]
 lsEntity :: Parser Entity
 lsEntity = do
   start <- lsEntityStart
-  void $ char ' '
+  trace ("in lsEntity " ++ show start) $ void $ char ' '
   entityName <- filenameUntilEndl
-  return $ case start of
-    DirToken -> Dir entityName
-    FileSizeToken size -> Fn size entityName
+  return $ case trace ("read filename '" ++ show entityName ++ "'") start of
+    DirToken -> trace ("dir name " ++ entityName) $ Dir entityName
+    FileSizeToken size -> trace ("found file " ++ show size ++ " " ++ entityName) $ Fn size entityName
+
+lsLastNewline :: Parser Bool
+lsLastNewline = try (newline >> char '$' >> return True) <|> return False
 
 -- TODO: handle EOF
 lsOutput :: Parser [Entity]
-lsOutput = lsEntity `manyTill` try (newline >> char '$')
+--lsOutput = many1 lsEntity -- TODO: consume newline too
+lsOutput = do
+  entity <- lsEntity
+  isLastNewline <- lookAhead lsLastNewline
+  if not isLastNewline
+     then do
+       newline
+       next <- lsOutput
+       return $ entity:next
+    else return [entity]
+--lsOutput = lsEntity `manyTill` lookAhead ((void (char '$')) <|> eof)
+--lsOutput = lsEntity `manyTill` lookAhead (char '$') <|> (eof >> return [])
+--lsOutput = lsEntity `manyTill` lookAhead (char '$')
+-- lsOutput = do
+--   entities <- lsEntity `manyTill` lookAhead (char '$')
+--   void newline
+--   return entities
 -- lsOutput = do
 --   entities <- lsEntity `manyTill` lookAhead (newline >> char '$')
 --   void newline
@@ -58,13 +87,15 @@ filenameChar :: Parser Char
 filenameChar = alphaNum <|> oneOf "."
 
 filenameUntilEndl :: Parser String
-filenameUntilEndl = filenameChar `manyTill` newline
+filenameUntilEndl = filenameChar `manyTill` lookAhead newline
 
 cdArg :: Parser CdDirection
 cdArg = do
   void $ many1 $ char ' '
-  dir <- filenameUntilEndl <|> (string "/" >>= \path -> return path)
-  return $ case dir of
+  dir <- filenameUntilEndl <|> string "/"
+  --dir <- filenameUntilEndl <|> (string "/" >>= \path -> return path)
+  --void newline
+  return $ case trace ("dir found was " ++ dir) dir of
              ".." -> Up
              "/" -> GoToRoot
              _ -> Down dir
@@ -79,12 +110,12 @@ commandWithOutput :: Parser Command
 commandWithOutput = do
   void $ string "$ "
   cmd <- commandName
-  case cmd of
+  case trace ("cmd was " ++ show cmd) cmd of
     ChangeDir -> cdArg >>= \dirName -> return $ Cd dirName
     ListDir -> void newline >> lsOutput >>= \output -> return $ Ls output
 
 commandsFile :: Parser Parsed
-commandsFile = commandWithOutput `endBy` char '\n'
+commandsFile = commandWithOutput `endBy` newline
 
 parseInput :: String -> Either ParseError Parsed
 parseInput = parse commandsFile "day7.txt" -- 2nd arg is just the filename to use in parseerror s
@@ -95,5 +126,5 @@ main = do
   fileInput <- readFile "./data/day7.txt"
   let parsed = parseInput fileInput in
       case parsed of
-        Right result -> print result
+        Right result -> putStrLn ("results: " ++ show (length result)) >> print result
         Left err -> print err
