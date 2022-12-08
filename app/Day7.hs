@@ -3,7 +3,6 @@ module Main where
 
 import Text.ParserCombinators.Parsec hiding (State)
 import Control.Monad (void)
-import Debug.Trace
 import Data.Tree
 import Data.List
 
@@ -32,10 +31,10 @@ instance Show CdDirection where
 
 instance Show Entity where
   show (Dir dirName) = "dir " ++ dirName
-  show (Fn size fnName) = show size ++ fnName
+  show (Fn size fnName) = show size ++ " " ++ fnName
 
 instance Show Command where
-  show (Cd direction) = "$ cd" ++ show direction
+  show (Cd direction) = "$ cd " ++ show direction
   show (Ls output) = "$ ls\n" ++ intercalate "\n" (map show output)
 
 integer :: Parser Int
@@ -53,11 +52,11 @@ lsEntityStart = choice [parseDir, parseFileSize]
 lsEntity :: Parser Entity
 lsEntity = do
   start <- lsEntityStart
-  trace ("in lsEntity " ++ show start) $ void $ char ' '
+  void $ char ' '
   entityName <- filenameUntilEndl
-  return $ case trace ("read filename '" ++ show entityName ++ "'") start of
-    DirToken -> trace ("dir name " ++ entityName) $ Dir entityName
-    FileSizeToken size -> trace ("found file " ++ show size ++ " " ++ entityName) $ Fn size entityName
+  return $ case start of
+    DirToken -> Dir entityName
+    FileSizeToken size -> Fn size entityName
 
 lsLastNewline :: Parser Bool
 --lsLastNewline = try (newline >> char '$' >> return True) <|> return False
@@ -103,7 +102,7 @@ cdArg = do
   dir <- filenameUntilEndl <|> string "/"
   --dir <- filenameUntilEndl <|> (string "/" >>= \path -> return path)
   --void newline
-  return $ case trace ("dir found was " ++ dir) dir of
+  return $ case dir of
              ".." -> Up
              "/" -> GoToRoot
              _ -> Down dir
@@ -118,7 +117,7 @@ commandWithOutput :: Parser Command
 commandWithOutput = do
   void $ string "$ "
   cmd <- commandName
-  case trace ("cmd was " ++ show cmd) cmd of
+  case cmd of
     ChangeDir -> cdArg >>= \dirName -> return $ Cd dirName
     ListDir -> void newline >> lsOutput >>= \output -> return $ Ls output
 
