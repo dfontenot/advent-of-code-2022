@@ -41,6 +41,9 @@ instance Show Command where
 integer :: Parser Int
 integer = read <$> many1 digit
 
+newlineOrEof :: Parser ()
+newlineOrEof = void newline <|> eof
+
 lsEntityStart :: Parser EntityStartToken
 lsEntityStart = choice [parseDir, parseFileSize]
   where
@@ -57,7 +60,8 @@ lsEntity = do
     FileSizeToken size -> trace ("found file " ++ show size ++ " " ++ entityName) $ Fn size entityName
 
 lsLastNewline :: Parser Bool
-lsLastNewline = try (newline >> char '$' >> return True) <|> return False
+--lsLastNewline = try (newline >> char '$' >> return True) <|> return False
+lsLastNewline = choice [eof >> return True, try (newline >> char '$' >> return True) <|> return False]
 
 -- TODO: handle EOF
 lsOutput :: Parser [Entity]
@@ -67,7 +71,7 @@ lsOutput = do
   isLastNewline <- lookAhead lsLastNewline
   if not isLastNewline
      then do
-       newline
+       newlineOrEof
        next <- lsOutput
        return $ entity:next
     else return [entity]
@@ -87,7 +91,7 @@ filenameChar :: Parser Char
 filenameChar = alphaNum <|> oneOf "."
 
 filenameUntilEndl :: Parser String
-filenameUntilEndl = filenameChar `manyTill` lookAhead newline
+filenameUntilEndl = filenameChar `manyTill` lookAhead newlineOrEof
 
 cdArg :: Parser CdDirection
 cdArg = do
@@ -115,7 +119,7 @@ commandWithOutput = do
     ListDir -> void newline >> lsOutput >>= \output -> return $ Ls output
 
 commandsFile :: Parser Parsed
-commandsFile = commandWithOutput `endBy` newline
+commandsFile = commandWithOutput `endBy` newlineOrEof
 
 parseInput :: String -> Either ParseError Parsed
 parseInput = parse commandsFile "day7.txt" -- 2nd arg is just the filename to use in parseerror s
