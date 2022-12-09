@@ -15,11 +15,12 @@ instance (Show a) => Show (Matrix a) where
 matrixFromList :: (Integral a) => [[a]] -> Matrix a
 matrixFromList lst = Matrix $ V.fromList $ map V.fromList lst
 
+-- turn the matrix 90 degrees counter clockwise
 rotateMat :: Matrix a -> Matrix a
-rotateMat (Matrix mat) = Matrix $ V.fromList $ collectMat 0 (V.length (mat V.! 0)) mat
+rotateMat (Matrix mat) = Matrix $ collectMat 0 (V.length (mat V.! 0)) mat
   where
-    collectMat i len mat' | i <= len - 1 = V.map (V.! i) mat':collectMat (i + 1) len mat'
-    collectMat _ _ _ = []
+    collectMat i len mat' | i <= len - 1 = collectMat (i + 1) len mat' V.++ V.singleton (V.map (V.! i) mat')
+    collectMat _ _ _ = V.empty
 
 numTreesInRow :: (Integral a) => V.Vector a -> Int
 numTreesInRow row | V.length row == 0 = 0
