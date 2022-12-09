@@ -12,14 +12,38 @@ instance (Show a) => Show (Matrix a) where
       listLines = V.toList $ V.map (unwords . listLine) lines_
       listLine line = if null line then ["(empty line)"] else V.toList $ V.map show line
 
+matrixFromList :: (Integral a) => [[a]] -> Matrix a
+matrixFromList lst = Matrix $ V.fromList $ map V.fromList lst
+
 rotateMat :: Matrix a -> Matrix a
 rotateMat (Matrix mat) = Matrix $ V.fromList $ collectMat 0 (V.length (mat V.! 0)) mat
   where
     collectMat i len mat' | i <= len - 1 = V.map (V.! i) mat':collectMat (i + 1) len mat'
     collectMat _ _ _ = []
 
+numTreesInRow :: (Integral a) => V.Vector a -> Int
+numTreesInRow row | V.length row == 0 = 0
+numTreesInRow row = evalState treeScan (0, 0, 0)
+  where
+    treeScan = do
+      (pos, heightToBeat, numTreesVisible) <- get
+      if pos == V.length row
+         then return numTreesVisible
+         else let thisTreeHeight = row V.! pos in do
+           if thisTreeHeight > heightToBeat
+              then put (pos + 1, thisTreeHeight, numTreesVisible + 1) >> treeScan
+              else put (pos + 1, heightToBeat, numTreesVisible) >> treeScan
+
+treeScanFromLeftSide :: (Integral a) => Matrix a -> Int
+treeScanFromLeftSide (Matrix forest) = forestScan 1
+  where
+    forestScan pos | pos == V.length forest = 0
+    forestScan pos | pos == V.length forest - 1 = 0
+    forestScan pos = numTreesInRow (forest V.! pos) + forestScan (pos + 1)
+
 main :: IO ()
 main = do
   input <- readFile "./data/day8.txt"
   -- map (map ((read :: String -> Int) . singleton)) (lines input)
-  print $ Matrix $ V.fromList $ map (V.fromList . map ((read :: String -> Int) . singleton)) (lines input)
+  let mat = Matrix $ V.fromList $ map (V.fromList . map ((read :: String -> Int) . singleton)) (lines input) in
+      print $ treeScanFromLeftSide $ rotateMat $ rotateMat $ rotateMat mat
