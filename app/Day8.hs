@@ -1,3 +1,4 @@
+{-# LANGUAGE NegativeLiterals #-}
 module Main where
 
 import qualified Data.Vector as V
@@ -7,6 +8,7 @@ import Control.Monad.State
 
 newtype Matrix a = Matrix (V.Vector (V.Vector a))
 type TreeCoords = (Int, Int)
+type MatrixDimens = (Int, Int)
 
 instance (Show a) => Show (Matrix a) where
   show (Matrix lines_) = "----\n" ++ intercalate "\n" listLines ++ "\n----"
@@ -17,6 +19,17 @@ instance (Show a) => Show (Matrix a) where
 matrixFromList :: (Integral a) => [[a]] -> Matrix a
 matrixFromList lst = Matrix $ V.fromList $ map V.fromList lst
 
+-- TODO: work for non square matrices
+matrixPointCCWRotate :: Int -> TreeCoords -> TreeCoords
+matrixPointCCWRotate m (x_, y_) | even m = let half = m `div` 2 in
+                                                       let x = x_ - half in
+                                                           let y = y_ + half in
+                                                               let x' = -1 * y in
+                                                                   let y' = x in
+                                                                       (x' + half, -1 * (y' - half))
+matrixPointCCWRotate _ _ = error "not possible" -- TODO: impl for odd m
+
+-- NOTE: assumes non-jagged matrix
 matrixPerimeter :: Matrix a -> Int
 matrixPerimeter (Matrix mat) = let m = V.length mat in
                                    let n = V.length (mat V.! 0) in m * 2 + n * 2 - 4
