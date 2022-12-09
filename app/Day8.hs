@@ -47,4 +47,5 @@ main = do
   input <- readFile "./data/day8.txt"
   -- map (map ((read :: String -> Int) . singleton)) (lines input)
   let mat = Matrix $ V.fromList $ map (V.fromList . map ((read :: String -> Int) . singleton)) (lines input) in
-      print $ treeScanFromLeftSide $ rotateMat $ rotateMat $ rotateMat mat
+      let rotations = [mat, rotateMat mat, (rotateMat . rotateMat) mat, (rotateMat . rotateMat . rotateMat) mat] in -- TODO: ugly
+          print $ sum $ map treeScanFromLeftSide rotations
