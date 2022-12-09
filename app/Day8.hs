@@ -34,12 +34,15 @@ numTreesInRow row yCoord = evalState treeScan (0, 0, [])
   where
     treeScan = do
       (pos, heightToBeat, visibleTrees) <- get
-      if pos == V.length row
-         then return visibleTrees
-         else let thisTreeHeight = row V.! pos in do
-           if thisTreeHeight > heightToBeat
-              then put (pos + 1, thisTreeHeight, (pos, yCoord):visibleTrees) >> treeScan
-              else put (pos + 1, heightToBeat, visibleTrees) >> treeScan
+      if pos == 0
+         then put (pos + 1, row V.! pos, visibleTrees) >> treeScan
+         else
+          if pos == V.length row
+             then return visibleTrees
+             else let thisTreeHeight = row V.! pos in do
+               if thisTreeHeight > heightToBeat
+                  then put (pos + 1, thisTreeHeight, (pos, yCoord):visibleTrees) >> treeScan
+                  else put (pos + 1, heightToBeat, visibleTrees) >> treeScan
 
 treeScanFromLeftSide :: (Integral a) => Matrix a -> [TreeCoords]
 treeScanFromLeftSide (Matrix forest) = forestScan 1
