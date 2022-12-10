@@ -18,14 +18,21 @@ instance (Show a) => Show (Matrix a) where
       listLines = V.toList $ V.map (unwords . listLine) lines_
       listLine line = if null line then ["(empty line)"] else V.toList $ V.map show line
 
-matrixFromList :: (Integral a) => [[a]] -> Matrix a
+-- TODO: fix, inefficient
+instance Foldable Matrix where
+  foldr fnc acc mat = foldr fnc acc $ concat $ matrixToList mat
+
+matrixToList :: Matrix a -> [[a]]
+matrixToList (Matrix mat) = V.toList $ V.map V.toList mat
+
+matrixFromList :: [[a]] -> Matrix a
 matrixFromList lst = Matrix $ V.fromList $ map V.fromList lst
 
 -- TODO: super unoptimized, sort by TreeCoords then do bulk updates when multiple updates to same row
 matrixUpdate :: Matrix a -> [(TreeCoords, a)] -> Matrix a
 matrixUpdate matrix [] = matrix
 matrixUpdate (Matrix mat) (((x, y), val):xs) = let row = mat V.! y in
-                                            matrixUpdate (Matrix (mat V.// [(y, (row V.// [(x, val)]))])) xs
+                                            matrixUpdate (Matrix (mat V.// [(y, row V.// [(x, val)])])) xs
 
 mapIndexVec :: (a -> Int -> b) -> V.Vector a -> V.Vector b
 mapIndexVec fnc vec = V.fromList $ mapper 0 (V.toList vec)
@@ -86,13 +93,22 @@ treeScanFromLeftSide1 forestMat = nothingMatrix `matrixUpdate` map (\coord -> (c
                                 let n = V.length (mat V.! 0) in
                                   V.replicate m (V.replicate n Nothing)
 
+uniqueTreeCoords :: [Matrix (Maybe TreeCoords)] -> Set.Set TreeCoords
+uniqueTreeCoords [] = Set.empty
+uniqueTreeCoords (mat:rst) = foldr insertOnPresent Set.empty mat `Set.union` uniqueTreeCoords rst
+  where
+    insertOnPresent (Just coord) set = Set.insert coord set
+    insertOnPresent Nothing set = set
+--
+-- NOTE: this is all super unoptimized and repeats a lot of scanning operations
+-- I'm writing it this way to have matrix utility functions availble for other use cases
 main :: IO ()
 main = do
   input <- readFile "./data/day8.txt"
   -- map (map ((read :: String -> Int) . singleton)) (lines input)
   let mat = Matrix $ V.fromList $ map (V.fromList . map ((read :: String -> Int) . singleton)) (lines input) in
       let rotations = treeScanFromLeftSide1 <$> [mat, rotateMat mat, (rotateMat . rotateMat) mat, (rotateMat . rotateMat . rotateMat) mat] in -- TODO: ugly
-          let unrotated = [rotateMat . rotateMat . rotateMat, rotateMat . rotateMat, rotateMat, id] <*> rotations in
+          let unrotated = [id, rotateMat . rotateMat . rotateMat, rotateMat . rotateMat, rotateMat] <*> rotations in
               print unrotated
           -- let numUniqueVisibleTrees = length $ Set.fromList $ concatMap treeScanFromLeftSide rotations in
           --     print $ numUniqueVisibleTrees + matrixPerimeter mat
