@@ -26,8 +26,8 @@ mapIndexVec fnc vec = V.fromList $ mapper 0 (V.toList vec)
     mapper _ [] = []
     mapper pos (x:xs) = fnc x pos:mapper (pos + 1) xs
 
-indexMapMatrix :: (a -> TreeCoords -> b) -> Matrix a -> Matrix b
-indexMapMatrix fnc (Matrix mat) = Matrix $ V.fromList $ mapIndex 0 $ V.toList mat
+mapIndexMatrix :: (a -> TreeCoords -> b) -> Matrix a -> Matrix b
+mapIndexMatrix fnc (Matrix mat) = Matrix $ V.fromList $ mapIndex 0 $ V.toList mat
   where
     mapIndex _ [] = []
     mapIndex y (vec:vecRst) = mapIndexVec (\item x' -> fnc item (x', y)) vec:mapIndex (y + 1) vecRst
