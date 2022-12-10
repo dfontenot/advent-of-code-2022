@@ -32,17 +32,6 @@ indexMapMatrix fnc (Matrix mat) = Matrix $ V.fromList $ mapIndex 0 $ V.toList ma
     mapIndex _ [] = []
     mapIndex y (vec:vecRst) = mapIndexVec (\item x' -> fnc item (x', y)) vec:mapIndex (y + 1) vecRst
 
--- TODO: work for non square matrices
--- TODO: fix, not correct
-matrixPointCCWRotate :: Int -> TreeCoords -> TreeCoords
-matrixPointCCWRotate m (x_, y_) | even m = let half = m `div` 2 in
-                                                       let x = x_ - half in
-                                                           let y = y_ + half in
-                                                               let x' = -1 * y in
-                                                                   let y' = x in
-                                                                       (x' + half, -1 * (y' - half))
-matrixPointCCWRotate _ _ = error "not possible" -- TODO: impl for odd m
-
 -- NOTE: assumes non-jagged matrix
 matrixPerimeter :: Matrix a -> Int
 matrixPerimeter (Matrix mat) = let m = V.length mat in
