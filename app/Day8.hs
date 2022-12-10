@@ -91,6 +91,8 @@ main = do
   input <- readFile "./data/day8.txt"
   -- map (map ((read :: String -> Int) . singleton)) (lines input)
   let mat = Matrix $ V.fromList $ map (V.fromList . map ((read :: String -> Int) . singleton)) (lines input) in
-      let rotations = [mat, rotateMat mat, (rotateMat . rotateMat) mat, (rotateMat . rotateMat . rotateMat) mat] in -- TODO: ugly
-          let numUniqueVisibleTrees = length $ Set.fromList $ concatMap treeScanFromLeftSide rotations in
-              print $ numUniqueVisibleTrees + matrixPerimeter mat
+      let rotations = treeScanFromLeftSide1 <$> [mat, rotateMat mat, (rotateMat . rotateMat) mat, (rotateMat . rotateMat . rotateMat) mat] in -- TODO: ugly
+          let unrotated = [rotateMat . rotateMat . rotateMat, rotateMat . rotateMat, rotateMat, id] <*> rotations in
+              print unrotated
+          -- let numUniqueVisibleTrees = length $ Set.fromList $ concatMap treeScanFromLeftSide rotations in
+          --     print $ numUniqueVisibleTrees + matrixPerimeter mat
