@@ -8,6 +8,7 @@ import Data.List
 import Control.Monad.State
 
 newtype Matrix a = Matrix (V.Vector (V.Vector a)) deriving Functor
+--newtype Matrix a = Matrix a { asVecs :: V.Vector (V.Vector a) } deriving Functor -- TODO: fix?
 type TreeCoords = (Int, Int)
 type MatrixDimens = (Int, Int)
 
@@ -19,6 +20,12 @@ instance (Show a) => Show (Matrix a) where
 
 matrixFromList :: (Integral a) => [[a]] -> Matrix a
 matrixFromList lst = Matrix $ V.fromList $ map V.fromList lst
+
+-- TODO: super unoptimized, sort by TreeCoords then do bulk updates when multiple updates to same row
+matrixUpdate :: Matrix a -> [(TreeCoords, a)] -> Matrix a
+matrixUpdate matrix [] = matrix
+matrixUpdate (Matrix mat) (((x, y), val):xs) = let row = mat V.! y in
+                                            matrixUpdate (Matrix (mat V.// [(y, (row V.// [(x, val)]))])) xs
 
 mapIndexVec :: (a -> Int -> b) -> V.Vector a -> V.Vector b
 mapIndexVec fnc vec = V.fromList $ mapper 0 (V.toList vec)
@@ -69,6 +76,15 @@ treeScanFromLeftSide (Matrix forest) = forestScan 1
     forestScan pos | pos == V.length forest = []
     forestScan pos | pos == V.length forest - 1 = []
     forestScan pos = numTreesInRow (forest V.! pos) pos ++ forestScan (pos + 1)
+
+treeScanFromLeftSide1 :: (Integral a) => Matrix a -> Matrix (Maybe TreeCoords)
+treeScanFromLeftSide1 forestMat = nothingMatrix `matrixUpdate` map (\coord -> (coord, Just coord)) (treeScanFromLeftSide forestMat)
+  where
+    nothingMatrix = Matrix $ let asVecs (Matrix m) = m in
+                        let mat = asVecs forestMat in
+                            let m = V.length mat in
+                                let n = V.length (mat V.! 0) in
+                                  V.replicate m (V.replicate n Nothing)
 
 main :: IO ()
 main = do
