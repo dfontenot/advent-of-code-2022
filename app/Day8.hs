@@ -1,4 +1,5 @@
 {-# LANGUAGE NegativeLiterals #-}
+{-# LANGUAGE DeriveFunctor #-}
 module Main where
 
 import qualified Data.Vector as V
@@ -6,7 +7,7 @@ import qualified Data.Set as Set
 import Data.List
 import Control.Monad.State
 
-newtype Matrix a = Matrix (V.Vector (V.Vector a))
+newtype Matrix a = Matrix (V.Vector (V.Vector a)) deriving Functor
 type TreeCoords = (Int, Int)
 type MatrixDimens = (Int, Int)
 
@@ -19,7 +20,20 @@ instance (Show a) => Show (Matrix a) where
 matrixFromList :: (Integral a) => [[a]] -> Matrix a
 matrixFromList lst = Matrix $ V.fromList $ map V.fromList lst
 
+mapIndexVec :: (a -> Int -> b) -> V.Vector a -> V.Vector b
+mapIndexVec fnc vec = V.fromList $ mapper 0 (V.toList vec)
+  where
+    mapper _ [] = []
+    mapper pos (x:xs) = fnc x pos:mapper (pos + 1) xs
+
+indexMapMatrix :: (a -> TreeCoords -> b) -> Matrix a -> Matrix b
+indexMapMatrix fnc (Matrix mat) = Matrix $ V.fromList $ mapIndex 0 $ V.toList mat
+  where
+    mapIndex _ [] = []
+    mapIndex y (vec:vecRst) = mapIndexVec (\item x' -> fnc item (x', y)) vec:mapIndex (y + 1) vecRst
+
 -- TODO: work for non square matrices
+-- TODO: fix, not correct
 matrixPointCCWRotate :: Int -> TreeCoords -> TreeCoords
 matrixPointCCWRotate m (x_, y_) | even m = let half = m `div` 2 in
                                                        let x = x_ - half in
