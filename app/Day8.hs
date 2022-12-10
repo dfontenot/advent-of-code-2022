@@ -32,6 +32,9 @@ mapIndexMatrix fnc (Matrix mat) = Matrix $ V.fromList $ mapIndex 0 $ V.toList ma
     mapIndex _ [] = []
     mapIndex y (vec:vecRst) = mapIndexVec (\item x' -> fnc item (x', y)) vec:mapIndex (y + 1) vecRst
 
+matrixSelect :: (a -> Bool) -> Matrix a -> [a]
+matrixSelect fnc (Matrix mat) = concat $ V.toList $ V.map (V.toList . V.filter fnc) mat
+
 -- NOTE: assumes non-jagged matrix
 matrixPerimeter :: Matrix a -> Int
 matrixPerimeter (Matrix mat) = let m = V.length mat in
