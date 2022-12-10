@@ -109,6 +109,7 @@ main = do
   let mat = Matrix $ V.fromList $ map (V.fromList . map ((read :: String -> Int) . singleton)) (lines input) in
       let rotations = treeScanFromLeftSide1 <$> [mat, rotateMat mat, (rotateMat . rotateMat) mat, (rotateMat . rotateMat . rotateMat) mat] in -- TODO: ugly
           let unrotated = [id, rotateMat . rotateMat . rotateMat, rotateMat . rotateMat, rotateMat] <*> rotations in
-              print unrotated
+              let uniqueTreeCount = Set.size $ uniqueTreeCoords unrotated in
+                  print $ uniqueTreeCount + matrixPerimeter mat
           -- let numUniqueVisibleTrees = length $ Set.fromList $ concatMap treeScanFromLeftSide rotations in
           --     print $ numUniqueVisibleTrees + matrixPerimeter mat
