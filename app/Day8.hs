@@ -95,10 +95,12 @@ treeScanFromLeftSide1 forestMat = nothingMatrix `matrixUpdate` map (\coord -> (c
 
 uniqueTreeCoords :: [Matrix (Maybe TreeCoords)] -> Set.Set TreeCoords
 uniqueTreeCoords [] = Set.empty
-uniqueTreeCoords (mat:rst) = foldr insertOnPresent Set.empty mat `Set.union` uniqueTreeCoords rst
+uniqueTreeCoords (mat:rst) = foldr insertOnPresent Set.empty (mapIndexMatrix oldIdxToNew mat) `Set.union` uniqueTreeCoords rst
   where
     insertOnPresent (Just coord) set = Set.insert coord set
     insertOnPresent Nothing set = set
+    oldIdxToNew (Just _) newCoords = Just newCoords
+    oldIdxToNew Nothing _ = Nothing
 --
 -- NOTE: this is all super unoptimized and repeats a lot of scanning operations
 -- I'm writing it this way to have matrix utility functions availble for other use cases
