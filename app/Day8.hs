@@ -96,33 +96,29 @@ numTreesVisible row otherCoord = treeScan
                     else put TreeScanState {pos=nextTreePos pos, ..} >> treeScan
 
 treeScanFromLeftSide :: V.Vector Int -> GridDimens -> [TreeCoords]
-treeScanFromLeftSide forest (m, n) = forestScan (1, 0)
+treeScanFromLeftSide forest (m, n) = forestScan (1, 1)
   where
-    forestScan (_, n') | n' == n = []
-    forestScan (_, n') | n' == n - 1 = []
+    forestScan (_, n') | n' >= n - 1 = []
     forestScan (m', n') = numTreesVisibleLeft (V.slice (m' * n') m forest) n' ++ forestScan (0, n' + 1)
 
 -- TODO: remove code duplication
 treeScanFromRightSide :: V.Vector Int -> GridDimens -> [TreeCoords]
-treeScanFromRightSide forest (m, n) = forestScan (1, 0)
+treeScanFromRightSide forest (m, n) = forestScan (1, 1)
   where
-    forestScan (_, n') | n' == n = []
-    forestScan (_, n') | n' == n - 1 = []
+    forestScan (_, n') | n' >= n - 1 = []
     forestScan (m', n') = numTreesVisibleRight (V.slice (m' * n') m forest) n' ++ forestScan (0, n' + 1)
 
 treeScanFromTopSide :: V.Vector Int -> GridDimens -> [TreeCoords]
-treeScanFromTopSide forest (m, n) = forestScan (0, 1)
+treeScanFromTopSide forest (m, n) = forestScan (1, 1)
   where
-    forestScan (m', _) | m' == m = []
-    forestScan (m', _) | m' == m - 1 = []
-    forestScan (m', n') = numTreesVisibleTop (copyColumn forest (m, n) m) m' ++ forestScan (m' + 1, 0)
+    forestScan (m', _) | m' >= m - 1 = []
+    forestScan (m', n') = numTreesVisibleTop (copyColumn forest (m', n) m) m' ++ forestScan (m' + 1, 0)
 
 treeScanFromBottomSide :: V.Vector Int -> GridDimens -> [TreeCoords]
-treeScanFromBottomSide forest (m, n) = forestScan (0, 1)
+treeScanFromBottomSide forest (m, n) = forestScan (1, 1)
   where
-    forestScan (m', _) | m' == m = []
-    forestScan (m', _) | m' == m - 1 = []
-    forestScan (m', n') = numTreesVisibleBottom (copyColumn forest (m, n) m) m' ++ forestScan (m' + 1, 0)
+    forestScan (m', _) | m' >= m - 1 = []
+    forestScan (m', n') = numTreesVisibleBottom (copyColumn forest (m', n) m) m' ++ forestScan (m' + 1, 0)
 
 main :: IO ()
 main = do
@@ -130,8 +126,7 @@ main = do
   let lines' = lines input in
       let m = (length . head) lines' in
           let n = length lines' in
-            let mat = V.fromList $ map ((read :: String -> Int) . singleton) $ filter (/= '\n') input in do
-                print $ treeScanFromLeftSide mat (m, n)
-                print $ treeScanFromRightSide mat (m, n)
-                print $ treeScanFromTopSide mat (m, n)
-                print $ treeScanFromBottomSide mat (m, n)
+            let mat = V.fromList $ map ((read :: String -> Int) . singleton) $ filter (/= '\n') input in
+                let sets = Set.fromList <$> [treeScanFromLeftSide mat (m, n), treeScanFromRightSide mat (m, n), treeScanFromTopSide mat (m, n), treeScanFromBottomSide mat (m, n)] in
+                    let unioned = foldr Set.union Set.empty sets in
+                        print $ (length unioned) + (m * 2) + (n * 2) - 4
