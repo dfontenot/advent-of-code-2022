@@ -52,8 +52,8 @@ numTreesVisibleRight row yCoord = evalState (numTreesVisible row yCoord) initial
   }
 
 numTreesVisibleTop :: V.Vector Int -> Int -> [TreeCoords]
-numTreesVisibleTop row _ | V.length row == 0 = []
-numTreesVisibleTop row xCoord = evalState (numTreesVisible row xCoord) initialState
+numTreesVisibleTop col _ | V.length col == 0 = []
+numTreesVisibleTop col xCoord = evalState (numTreesVisible col xCoord) initialState
   where
     initialState = TreeScanState {
     pos = 0,
@@ -62,6 +62,20 @@ numTreesVisibleTop row xCoord = evalState (numTreesVisible row xCoord) initialSt
     isBeginning = \_ pos -> pos == 0,
     isEnd = \len pos -> pos == len - 1,
     nextTreePos = (+1),
+    makeCoord = \lhs rhs -> (rhs, lhs)
+  }
+
+numTreesVisibleBottom :: V.Vector Int -> Int -> [TreeCoords]
+numTreesVisibleBottom col _ | V.length col == 0 = []
+numTreesVisibleBottom col xCoord = evalState (numTreesVisible col xCoord) initialState
+  where
+    initialState = TreeScanState {
+    pos = V.length col - 1,
+    heightToBeat = 0,
+    visibleTrees = [],
+    isEnd = \_ pos -> pos == 0,
+    isBeginning = \len pos -> pos == len - 1,
+    nextTreePos = \x -> x - 1,
     makeCoord = \lhs rhs -> (rhs, lhs)
   }
 
@@ -103,6 +117,13 @@ treeScanFromTopSide forest (m, n) = forestScan (0, 1)
     forestScan (m', _) | m' == m - 1 = []
     forestScan (m', n') = numTreesVisibleTop (copyColumn forest (m, n) m) m' ++ forestScan (m' + 1, 0)
 
+treeScanFromBottomSide :: V.Vector Int -> GridDimens -> [TreeCoords]
+treeScanFromBottomSide forest (m, n) = forestScan (0, 1)
+  where
+    forestScan (m', _) | m' == m = []
+    forestScan (m', _) | m' == m - 1 = []
+    forestScan (m', n') = numTreesVisibleBottom (copyColumn forest (m, n) m) m' ++ forestScan (m' + 1, 0)
+
 main :: IO ()
 main = do
   input <- readFile "./data/day8.txt"
@@ -113,3 +134,4 @@ main = do
                 print $ treeScanFromLeftSide mat (m, n)
                 print $ treeScanFromRightSide mat (m, n)
                 print $ treeScanFromTopSide mat (m, n)
+                print $ treeScanFromBottomSide mat (m, n)
