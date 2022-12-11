@@ -14,7 +14,8 @@ data TreeScanState = TreeScanState
   visibleTrees :: [TreeCoords],
   isBeginning :: Int -> Int -> Bool,
   isEnd :: Int -> Int -> Bool,
-  nextTreePos :: Int -> Int
+  nextTreePos :: Int -> Int,
+  makeCoord :: Int -> Int -> TreeCoords
   }
 
 numTreesVisibleLeft :: V.Vector Int -> Int -> [TreeCoords]
@@ -27,7 +28,8 @@ numTreesVisibleLeft row yCoord = evalState (numTreesVisible row yCoord) initialS
     visibleTrees = [],
     isBeginning = \_ pos -> pos == 0,
     isEnd = \len pos -> pos == len - 1,
-    nextTreePos = (+1)
+    nextTreePos = (+1),
+    makeCoord = (,)
   }
 
 numTreesVisibleRight :: V.Vector Int -> Int -> [TreeCoords]
@@ -40,12 +42,13 @@ numTreesVisibleRight row yCoord = evalState (numTreesVisible row yCoord) initial
     visibleTrees = [],
     isEnd = \_ pos -> pos == 0,
     isBeginning = \len pos -> pos == len - 1,
-    nextTreePos = \x -> x - 1
+    nextTreePos = \x -> x - 1,
+    makeCoord = (,)
   }
 
 numTreesVisible :: V.Vector Int -> Int -> State TreeScanState [TreeCoords]
 numTreesVisible row _ | V.length row == 0 = return []
-numTreesVisible row yCoord = treeScan
+numTreesVisible row otherCoord = treeScan
   where
     treeScan = let len = V.length row in do
         TreeScanState {..} <- get
@@ -56,7 +59,7 @@ numTreesVisible row yCoord = treeScan
                then return visibleTrees
                else let thisTreeHeight = row V.! pos in do
                  if thisTreeHeight > heightToBeat
-                    then put TreeScanState {pos=nextTreePos pos, heightToBeat=thisTreeHeight, visibleTrees=(pos, yCoord):visibleTrees, ..} >> treeScan
+                    then put TreeScanState {pos=nextTreePos pos, heightToBeat=thisTreeHeight, visibleTrees=makeCoord pos otherCoord:visibleTrees, ..} >> treeScan
                     else put TreeScanState {pos=nextTreePos pos, ..} >> treeScan
 
 treeScanFromLeftSide :: V.Vector Int -> GridDimens -> [TreeCoords]
