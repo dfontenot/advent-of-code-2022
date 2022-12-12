@@ -15,14 +15,15 @@ processCoord vec dimens startCoord = return $ upViewScore (n - 1) * downViewScor
   where
     (m, n) = dimens
     height = valAtGrid vec (m, n) startCoord
-    downViewScore n' | n' == n' - 2 = if valAtGrid vec dimens (m, n') >= height then n - 1 else n
-    downViewScore n' = if valAtGrid vec dimens (m, n') >= height then n - n' else downViewScore n' + 1
-    upViewScore n' | n' == 0 = if valAtGrid vec dimens (m, n') >= height then n - 1 else n
-    upViewScore n' = if valAtGrid vec dimens (m, n') >= height then n - n' else upViewScore n' - 1
-    leftViewScore m' | m' == 0 = if valAtGrid vec dimens (m', n) >= height then m - 1 else m
-    leftViewScore m' = if valAtGrid vec dimens (m', n) >= height then m - m' else leftViewScore m' - 1
-    rightViewScore m' | m' == m - 2 = if valAtGrid vec dimens (m', n) >= height then m - 1 else m
-    rightViewScore m' = if valAtGrid vec dimens (m', n) >= height then m' - m else rightViewScore m' + 1
+    valCheck = valAtGrid vec dimens
+    downViewScore n' | n' == n - 1 = if valCheck (m, n') >= height then n - 1 else n
+    downViewScore n' = if valCheck (m, n') >= height then n - n' else downViewScore $ n' + 1
+    upViewScore n' | n' == 0 = if valCheck (m, n') >= height then n - 1 else n
+    upViewScore n' = if valCheck (m, n') >= height then n - n' else upViewScore $ n' - 1
+    leftViewScore m' | m' == 0 = if valCheck (m', n) >= height then m - 1 else m
+    leftViewScore m' = if valCheck (m', n) >= height then m - m' else leftViewScore $ m' - 1
+    rightViewScore m' | m' == m - 1 = if valCheck (m', n) >= height then m - 1 else m
+    rightViewScore m' = if valCheck (m', n) >= height then m' - m else rightViewScore $ m' + 1
 
 main :: IO ()
 main = do
