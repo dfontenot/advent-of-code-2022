@@ -23,6 +23,9 @@ copyColumn input (m, n) col = V.generate n selectCol
   where
     selectCol i = input V.! (i * m + col)
 
+valAtGrid :: V.Vector a -> GridDimens -> TreeCoords -> a
+valAtGrid vec (m, _) (x, y) = let pos = (m * y) + x in vec V.! pos
+
 numTreesVisibleLeft :: V.Vector Int -> Int -> [TreeCoords]
 numTreesVisibleLeft row _ | V.length row == 0 = []
 numTreesVisibleLeft row yCoord = evalState (numTreesVisible row yCoord) initialState
@@ -86,27 +89,27 @@ numTreesVisible row otherCoord = treeScan
     treeScan = let len = V.length row in do
         TreeScanState {..} <- get
         if isBeginning len pos
-           then put TreeScanState {pos=nextTreePos pos, heightToBeat=row V.! pos, ..} >> treeScan
+           then put TreeScanState {heightToBeat=row V.! pos, pos=nextTreePos pos, ..} >> treeScan
            else
             if isEnd len pos
                then return visibleTrees
                else let thisTreeHeight = row V.! pos in do
                  if thisTreeHeight > heightToBeat
-                    then put TreeScanState {pos=nextTreePos pos, heightToBeat=thisTreeHeight, visibleTrees=makeCoord pos otherCoord:visibleTrees, ..} >> treeScan
+                    then put TreeScanState {heightToBeat=thisTreeHeight, visibleTrees=makeCoord pos otherCoord:visibleTrees, pos=nextTreePos pos, ..} >> treeScan
                     else put TreeScanState {pos=nextTreePos pos, ..} >> treeScan
 
 treeScanFromLeftSide :: V.Vector Int -> GridDimens -> [TreeCoords]
 treeScanFromLeftSide forest (m, n) = forestScan 1
   where
     forestScan n' | n' >= n - 1 = []
-    forestScan n' = numTreesVisibleLeft (V.slice n' m forest) n' ++ forestScan (n' + 1)
+    forestScan n' = numTreesVisibleLeft (V.slice (n' * m) m forest) n' ++ forestScan (n' + 1)
 
 -- TODO: remove code duplication
 treeScanFromRightSide :: V.Vector Int -> GridDimens -> [TreeCoords]
 treeScanFromRightSide forest (m, n) = forestScan 1
   where
     forestScan n' | n' >= n - 1 = []
-    forestScan n' = numTreesVisibleRight (V.slice n' m forest) n' ++ forestScan (n' + 1)
+    forestScan n' = numTreesVisibleRight (V.slice (n' * m) m forest) n' ++ forestScan (n' + 1)
 
 treeScanFromTopSide :: V.Vector Int -> GridDimens -> [TreeCoords]
 treeScanFromTopSide forest (m, n) = forestScan 1
@@ -130,4 +133,5 @@ main = do
                 let sets = Set.fromList <$> [treeScanFromLeftSide mat (m, n), treeScanFromRightSide mat (m, n), treeScanFromTopSide mat (m, n), treeScanFromBottomSide mat (m, n)] in
                     let unioned = foldr Set.union Set.empty sets in do
                       print sets
-                      print $ length unioned + (m * 2) + (n * 2) - 4
+                      print $ map (valAtGrid mat (m, n)) ((Set.toList . (!! 1)) sets)
+                      print $ Set.size unioned + (m * 2) + (n * 2) - 4
