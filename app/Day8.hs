@@ -99,26 +99,26 @@ treeScanFromLeftSide :: V.Vector Int -> GridDimens -> [TreeCoords]
 treeScanFromLeftSide forest (m, n) = forestScan (1, 1)
   where
     forestScan (_, n') | n' >= n - 1 = []
-    forestScan (m', n') = numTreesVisibleLeft (V.slice (m' * n') m forest) n' ++ forestScan (0, n' + 1)
+    forestScan (_, n') = numTreesVisibleLeft (V.slice n' m forest) n' ++ forestScan (1, n' + 1)
 
 -- TODO: remove code duplication
 treeScanFromRightSide :: V.Vector Int -> GridDimens -> [TreeCoords]
 treeScanFromRightSide forest (m, n) = forestScan (1, 1)
   where
     forestScan (_, n') | n' >= n - 1 = []
-    forestScan (m', n') = numTreesVisibleRight (V.slice (m' * n') m forest) n' ++ forestScan (0, n' + 1)
+    forestScan (_, n') = numTreesVisibleRight (V.slice n' m forest) n' ++ forestScan (1, n' + 1)
 
 treeScanFromTopSide :: V.Vector Int -> GridDimens -> [TreeCoords]
 treeScanFromTopSide forest (m, n) = forestScan (1, 1)
   where
     forestScan (m', _) | m' >= m - 1 = []
-    forestScan (m', n') = numTreesVisibleTop (copyColumn forest (m', n) m) m' ++ forestScan (m' + 1, 0)
+    forestScan (m', _) = numTreesVisibleTop (copyColumn forest (m, n) m') m' ++ forestScan (m' + 1, 1)
 
 treeScanFromBottomSide :: V.Vector Int -> GridDimens -> [TreeCoords]
 treeScanFromBottomSide forest (m, n) = forestScan (1, 1)
   where
     forestScan (m', _) | m' >= m - 1 = []
-    forestScan (m', n') = numTreesVisibleBottom (copyColumn forest (m', n) m) m' ++ forestScan (m' + 1, 0)
+    forestScan (m', _) = numTreesVisibleBottom (copyColumn forest (m, n) m') m' ++ forestScan (m' + 1, 1)
 
 main :: IO ()
 main = do
