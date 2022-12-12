@@ -8,13 +8,15 @@ type Coord = (Int, Int)
 type GridDimens = (Int, Int)
 
 valAtGrid :: V.Vector a -> GridDimens -> Coord -> a
+-- valAtGrid vec (m, _) (x, _) | x > m -1 = error $ "x " ++ show x ++ " is too large"
+-- valAtGrid vec (_, n) (_, y) | y > n -1 = error "y is too large"
 valAtGrid vec (m, _) (x, y) = let pos = (m * y) + x in vec V.! pos
 
 processCoord :: V.Vector Int -> GridDimens -> Coord -> IO Int
-processCoord vec dimens startCoord = return $ upViewScore (n - 1) * downViewScore (n - 1) * leftViewScore (m - 1) * rightViewScore (m - 1)
+processCoord vec dimens (x, y) = return $ upViewScore (y - 1) * downViewScore (y + 1) * leftViewScore (x - 1) * rightViewScore (x + 1)
   where
     (m, n) = dimens
-    height = valAtGrid vec (m, n) startCoord
+    height = valAtGrid vec (m, n) (x, y)
     valCheck = valAtGrid vec dimens
     downViewScore n' | n' == n - 1 = if valCheck (m, n') >= height then n - 1 else n
     downViewScore n' = if valCheck (m, n') >= height then n - n' else downViewScore $ n' + 1
