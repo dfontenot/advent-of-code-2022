@@ -122,7 +122,7 @@ treeScanFromBottomSide forest (m, n) = forestScan (1, 1)
 
 main :: IO ()
 main = do
-  input <- readFile "./data/day8.txt"
+  input <- readFile "./data/day8-test.txt"
   let lines' = lines input in
       let m = (length . head) lines' in
           let n = length lines' in
