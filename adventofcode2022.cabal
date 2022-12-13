@@ -145,6 +145,7 @@ executable day8part2
         -fprof-auto
         -fprof-cafs
         -Wall
+        -prof
     import:           warnings
     main-is:          Day8Part2.hs
     build-depends:    async == 2.2.*, base ^>=4.16.3.0, containers == 0.6.*, mtl == 2.3.*, vector == 0.13.*
