@@ -24,17 +24,17 @@ processCoord vec dimens (x, y) = return $ upViewScore (y - 1) * downViewScore (y
     valCheck = valAtGrid vec dimens
     downViewScore :: HasCallStack => Int -> Int
     downViewScore n' | n' > n - 1 = error "bad"
-    downViewScore n' | n' == n - 1 = if valCheck (x, n') >= height then n - 1 else n
-    downViewScore n' = if valCheck (x, n') >= height then n - n' else downViewScore $ n' + 1
+    downViewScore n' | n' == n - 1 = if valCheck (x, n') >= height then n' - y - 1 else n - y
+    downViewScore n' = if valCheck (x, n') >= height then n' - y - 1 else downViewScore $ n' + 1
     upViewScore :: HasCallStack => Int -> Int
-    upViewScore n' | n' == 0 = if valCheck (x, n') >= height then n - 1 else n
-    upViewScore n' = if valCheck (x, n') >= height then n - n' else upViewScore $ n' - 1
+    upViewScore n' | n' == 0 = if valCheck (x, n') >= height then y - n' - 1 else y
+    upViewScore n' = if valCheck (x, n') >= height then y - n' - 1 else upViewScore $ n' - 1
     leftViewScore :: HasCallStack => Int -> Int
-    leftViewScore m' | m' == 0 = if valCheck (m', y) >= height then m - 1 else m
-    leftViewScore m' = if valCheck (m', y) >= height then m - m' else leftViewScore $ m' - 1
+    leftViewScore m' | m' == 0 = if valCheck (m', y) >= height then x - m' - 1 else x
+    leftViewScore m' = if valCheck (m', y) >= height then x - m' - 1 else leftViewScore $ m' - 1
     rightViewScore :: HasCallStack => Int -> Int
-    rightViewScore m' | m' == m - 1 = if valCheck (m', y) >= height then m - 1 else m
-    rightViewScore m' = if valCheck (m', y) >= height then m' - m else rightViewScore $ m' + 1
+    rightViewScore m' | m' == m - 1 = if valCheck (m', y) >= height then m' - x - 1 else m - x
+    rightViewScore m' = if valCheck (m', y) >= height then m' - x - 1 else rightViewScore $ m' + 1
 
 main :: HasCallStack => IO ()
 main = do
