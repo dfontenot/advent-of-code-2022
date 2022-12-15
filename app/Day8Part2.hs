@@ -15,6 +15,18 @@ valAtGrid _ (_, n) (_, y) | y >= n = error "no"
 valAtGrid _ (m, _) (x, _) | x >= m = error "also no"
 valAtGrid vec (m, _) (x, y) = let pos = (m * y) + x in vec V.! pos
 
+-- each successive element is an increment in the x direction, until m units, then increment in the y
+rowOrderVector :: HasCallStack => String -> V.Vector Int
+rowOrderVector input = V.fromList $ map ((read :: String -> Int) . singleton) $ filter (/= '\n') input
+
+toColOrderVector :: HasCallStack => V.Vector a -> GridDimens -> V.Vector a
+toColOrderVector vec (m, n) = V.fromList $ colIterate (0, 0)
+  where
+    colIterate (x, _) | x == m = []
+    colIterate (x, y) | y < n = valAtGrid vec (m, n) (x, y):colIterate (x, y + 1)
+    colIterate (x, y) | y == n = colIterate (x + 1, 0)
+    colIterate (_, _) = error "iteration failure"
+
 processCoord :: HasCallStack => V.Vector Int -> GridDimens -> Coord -> IO Int
 processCoord vec dimens (x, y) = return $ upViewScore (y - 1) * downViewScore (y + 1) * leftViewScore (x - 1) * rightViewScore (x + 1)
   where
@@ -42,7 +54,7 @@ main = do
   let lines' = lines input in
       let m = (length . head) lines' in
           let n = length lines' in
-            let mat = V.fromList $ map ((read :: String -> Int) . singleton) $ filter (/= '\n') input in
+            let mat = rowOrderVector input in
                 let allCoords = [(x, y) | x <- [1..m-2], y <- [1..n-2]] in do
                   print allCoords
                   results <- mapConcurrently (processCoord mat (m, n)) allCoords
