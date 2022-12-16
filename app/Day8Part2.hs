@@ -18,10 +18,13 @@ instance Show CoordDirectionScores where
 type Coord = (Int, Int)
 type GridDimens = (Int, Int)
 
+coordToPoint :: HasCallStack => GridDimens -> Coord -> Int
+coordToPoint (_, n) (_, y) | y >= n = error "no"
+coordToPoint (m, _) (x, _) | x >= m = error "also no"
+coordToPoint (m, _) (x, y) = (m * y) + x
+
 valAtGridRow :: HasCallStack => V.Vector a -> GridDimens -> Coord -> a
-valAtGridRow _ (_, n) (_, y) | y >= n = error "no"
-valAtGridRow _ (m, _) (x, _) | x >= m = error "also no"
-valAtGridRow vec (m, _) (x, y) = let pos = (m * y) + x in vec V.! pos
+valAtGridRow vec dimens coord = vec V.! coordToPoint dimens coord
 
 valAtGridCol :: HasCallStack => V.Vector a -> GridDimens -> Coord -> a
 valAtGridCol vec dimens (x, y) = valAtGridRow vec dimens (y, x)
@@ -41,26 +44,30 @@ toColOrderVector vec (m, n) = V.fromList $ colIterate (0, 0)
 coordDirectionScore :: HasCallStack => CoordDirectionScores -> Int
 coordDirectionScore CoordDirectionScores { upScore=up, downScore=down, leftScore=left, rightScore=right } = up * down * left * right
 
-processCoord :: HasCallStack => V.Vector Int -> V.Vector Int -> GridDimens -> Coord -> IO CoordDirectionScores
-processCoord vec colVec dimens (x, y) = return $ CoordDirectionScores { upScore=upViewScore (y - 1), downScore=downViewScore (y + 1), leftScore=leftViewScore (x - 1), rightScore=rightViewScore (x + 1) }
+beforeCoord :: HasCallStack => V.Vector Int -> GridDimens -> Coord -> Int
+beforeCoord vec dimens coord = process x 1 $ V.slice (coordToPoint dimens coord - x) x vec
   where
-    (m, n) = dimens
-    height = valAtGridRow vec (m, n) (x, y)
-    valCheck :: HasCallStack => Coord -> Int
-    valCheck = valAtGridRow vec dimens
-    -- downViewScore :: HasCallStack => Int -> Int
-    -- downViewScore y' | y' > n - 1 = error "bad"
-    -- downViewScore y' | y' == n - 1 = if valCheck (x, y') >= height then y' - y - 1 else n - y
-    -- downViewScore y' = if valCheck (x, y') >= height then y' - y - 1 else downViewScore $ y' + 1
-    -- upViewScore :: HasCallStack => Int -> Int
-    -- upViewScore y' | y' == 0 = if valCheck (x, y') >= height then y - y' - 1 else y
-    -- upViewScore y' = if valCheck (x, y') >= height then y - y' - 1 else upViewScore $ y' - 1
-    leftViewScore :: HasCallStack => Int -> Int
-    leftViewScore x' | x' == 0 = if valCheck (x', y) >= height then x - 1 else x
-    leftViewScore x' = if valCheck (x', y) >= height then x - x' else leftViewScore $ x' - 1
-    rightViewScore :: HasCallStack => Int -> Int
-    rightViewScore x' | x' == m - 1 = if valCheck (x', y) >= height then x' - x - 1 else m - x
-    rightViewScore x' = if valCheck (x', y) >= height then x' - x - 1 else rightViewScore $ x' + 1
+    height = valAtGridRow vec dimens coord
+    (x, _) = coord
+    process x' seen vec' | x' == 0 = if vec' V.! x' >= height then seen else seen + 1
+    process x' seen vec' = if vec' V.! x' >= height then seen else process (x' - 1) (seen + 1) vec'
+
+afterCoord :: HasCallStack => V.Vector Int -> GridDimens -> Coord -> Int
+afterCoord vec dimens coord = process 0 1 $ V.slice (coordToPoint dimens coord + 1) (m - x) vec
+  where
+    height = valAtGridRow vec dimens coord
+    (x, _) = coord
+    (m, _) = dimens
+    process x' seen vec' | x' == m - 1 = if vec' V.! x' >= height then seen else seen + 1
+    process x' seen vec' = if vec' V.! x' >= height then seen else process (x' + 1) (seen + 1) vec'
+
+processCoord :: HasCallStack => V.Vector Int -> V.Vector Int -> GridDimens -> Coord -> IO CoordDirectionScores
+processCoord mat colMat dimens coord = return $ CoordDirectionScores
+  { upScore=afterCoord colMat dimens coord,
+  downScore=beforeCoord colMat dimens coord,
+  leftScore=beforeCoord mat dimens coord,
+  rightScore=afterCoord mat dimens coord
+  }
 
 main :: HasCallStack => IO ()
 main = do
