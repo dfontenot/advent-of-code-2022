@@ -59,8 +59,6 @@ lsEntity = do
     FileSizeToken size -> Fn size entityName
 
 lsLastNewline :: Parser Bool
---lsLastNewline = try (newline >> char '$' >> return True) <|> return False
---lsLastNewline = choice [eof >> return True, try (newline >> char '$' >> return True) <|> return False]
 lsLastNewline = do
   void newline
   -- TODO: super ugly, just choosing a random char for the fallback for the try, refactor to get rid of the need to do that
@@ -78,17 +76,6 @@ lsOutput = do
        next <- lsOutput
        return $ entity:next
     else return [entity]
---lsOutput = lsEntity `manyTill` lookAhead ((void (char '$')) <|> eof)
---lsOutput = lsEntity `manyTill` lookAhead (char '$') <|> (eof >> return [])
---lsOutput = lsEntity `manyTill` lookAhead (char '$')
--- lsOutput = do
---   entities <- lsEntity `manyTill` lookAhead (char '$')
---   void newline
---   return entities
--- lsOutput = do
---   entities <- lsEntity `manyTill` lookAhead (newline >> char '$')
---   void newline
---   return entities
 
 filenameChar :: Parser Char
 filenameChar = alphaNum <|> oneOf "."
@@ -100,8 +87,6 @@ cdArg :: Parser CdDirection
 cdArg = do
   void $ many1 $ char ' '
   dir <- filenameUntilEndl <|> string "/"
-  --dir <- filenameUntilEndl <|> (string "/" >>= \path -> return path)
-  --void newline
   return $ case dir of
              ".." -> Up
              "/" -> GoToRoot
