@@ -55,7 +55,7 @@ beforeCoord vec dimens coord = process (x - 1) 1 $ V.slice (coordToPoint dimens 
 afterCoord :: HasCallStack => V.Vector Int -> GridDimens -> Coord -> Int
 afterCoord vec dimens coord = process 0 1 $ V.slice (coordToPoint dimens coord + 1) len vec
   where
-    len = m - x + 1
+    len = m - (x + 1)
     height = valAtGridRow vec dimens coord
     (x, _) = coord
     (m, _) = dimens
@@ -72,7 +72,7 @@ processCoord mat colMat dimens coord = return $ CoordDirectionScores
 
 main :: HasCallStack => IO ()
 main = do
-  input <- readFile "./data/day8-test.txt"
+  input <- readFile "./data/day8.txt"
   let lines' = lines input in
       let m = (length . head) lines' in
           let n = length lines' in
