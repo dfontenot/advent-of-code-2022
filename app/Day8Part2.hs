@@ -49,7 +49,7 @@ beforeCoord vec dimens coord = process (x - 1) 1 $ V.slice (coordToPoint dimens 
   where
     height = valAtGridRow vec dimens coord
     (x, _) = coord
-    process x' seen vec' | x' == 0 = if vec' V.! x' >= height then seen else seen + 1
+    process x' seen _ | x' == 0 = seen
     process x' seen vec' = if vec' V.! x' >= height then seen else process (x' - 1) (seen + 1) vec'
 
 afterCoord :: HasCallStack => V.Vector Int -> GridDimens -> Coord -> Int
@@ -59,7 +59,7 @@ afterCoord vec dimens coord = process 0 1 $ V.slice (coordToPoint dimens coord +
     height = valAtGridRow vec dimens coord
     (x, _) = coord
     (m, _) = dimens
-    process x' seen vec' | x' == len - 1 = if vec' V.! x' >= height then seen else seen + 1
+    process x' seen _ | x' == len - 1 = seen
     process x' seen vec' = if vec' V.! x' >= height then seen else process (x' + 1) (seen + 1) vec'
 
 processCoord :: HasCallStack => V.Vector Int -> V.Vector Int -> GridDimens -> Coord -> IO CoordDirectionScores
