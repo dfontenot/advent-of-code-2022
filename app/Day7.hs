@@ -60,7 +60,7 @@ lsEntity = do
 
 lsLastNewline :: Parser Bool
 lsLastNewline = do
-  void newline
+  optional newline
   -- TODO: super ugly, just choosing a random char for the fallback for the try, refactor to get rid of the need to do that
   choice [eof >> return True, lookAhead (try (char '$') <|> return '^') >>= \char -> return (char == '$')]
 
