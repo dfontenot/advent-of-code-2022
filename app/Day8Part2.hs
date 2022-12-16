@@ -18,6 +18,9 @@ instance Show CoordDirectionScores where
 type Coord = (Int, Int)
 type GridDimens = (Int, Int)
 
+tupleFlip :: (a, a) -> (a, a)
+tupleFlip (a, b) = (b, a)
+
 coordToPoint :: HasCallStack => GridDimens -> Coord -> Int
 coordToPoint (_, n) (_, y) | y >= n = error "no"
 coordToPoint (m, _) (x, _) | x >= m = error "also no"
@@ -64,8 +67,8 @@ afterCoord vec dimens coord = process 0 1 $ V.slice (coordToPoint dimens coord +
 
 processCoord :: HasCallStack => V.Vector Int -> V.Vector Int -> GridDimens -> Coord -> IO CoordDirectionScores
 processCoord mat colMat dimens coord = return $ CoordDirectionScores
-  { upScore=beforeCoord colMat dimens coord,
-  downScore=afterCoord colMat dimens coord,
+  { upScore=beforeCoord colMat dimens $ tupleFlip coord,
+  downScore=afterCoord colMat dimens $ tupleFlip coord,
   leftScore=beforeCoord mat dimens coord,
   rightScore=afterCoord mat dimens coord
   }
