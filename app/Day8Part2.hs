@@ -64,8 +64,8 @@ afterCoord vec dimens coord = process 0 1 $ V.slice (coordToPoint dimens coord +
 
 processCoord :: HasCallStack => V.Vector Int -> V.Vector Int -> GridDimens -> Coord -> IO CoordDirectionScores
 processCoord mat colMat dimens coord = return $ CoordDirectionScores
-  { upScore=afterCoord colMat dimens coord,
-  downScore=beforeCoord colMat dimens coord,
+  { upScore=beforeCoord colMat dimens coord,
+  downScore=afterCoord colMat dimens coord,
   leftScore=beforeCoord mat dimens coord,
   rightScore=afterCoord mat dimens coord
   }
