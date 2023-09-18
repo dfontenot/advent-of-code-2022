@@ -17,6 +17,14 @@ data File = File { name :: String, size :: Int }
 data Node = Node { files :: [File], neighbors :: Map.Map VirtualPath Node }
 type AdjMatrix = Map.Map VirtualPath Node
 
+instance Show File where
+  show File { name=name_, size=size_ } = "<File " ++ name_ ++ " size " ++ show size_ ++ ">"
+
+instance Show Node where
+  show Node { files=files_, neighbors=neighbors_ } = "<Contents\n" ++
+    foldl (\acc file -> show file ++ "\n" ++ acc) "" files_ ++ "\n" ++
+      foldl (\acc neighbor -> intercalate "/" (reverse neighbor) ++ "\n" ++ acc) "" (Map.keys neighbors_) ++ "\n>"
+
 -- some matrix manipulation functions
 emptyNode :: Node
 emptyNode = Node { files = [], neighbors = Map.empty }
@@ -148,18 +156,18 @@ parseInput = parse commandsFile "day7.txt" -- 2nd arg is just the filename to us
 
 buildAdjacencyMatrix :: Parsed -> State MatrixBuilderState AdjMatrix
 buildAdjacencyMatrix [] = get >>= \ (m, _) -> return m
-buildAdjacencyMatrix (Cd GoToRoot:rst) = gets fst >>= \m -> put (m, [show GoToRoot]) >> buildAdjacencyMatrix rst
+buildAdjacencyMatrix (Cd GoToRoot:rst) = gets fst >>= \m -> put (m, [""]) >> buildAdjacencyMatrix rst
 buildAdjacencyMatrix (Cd Up:rst) = get >>= \ (m, path) -> put (m, tail path) >> buildAdjacencyMatrix rst
 buildAdjacencyMatrix (Cd (Down dirName):rst) = do
-  (map, path) <- get
+  (mat, path) <- get
   let newPath = dirName:path in do
-    case Map.lookup newPath map of
-      Nothing -> put (Map.insert newPath emptyNode map, newPath)
-      Just _ -> put (map, newPath)
+    case Map.lookup newPath mat of
+      Nothing -> put (Map.insert newPath emptyNode mat, newPath)
+      Just _ -> put (mat, newPath)
     buildAdjacencyMatrix rst
 buildAdjacencyMatrix (Ls entities:rst) = do
-  (map, path) <- get
-  put (addEntitiesAtPath map path entities, path)
+  (mat, path) <- get
+  put (addEntitiesAtPath mat path entities, path)
   buildAdjacencyMatrix rst
 
 main :: IO ()
@@ -168,5 +176,7 @@ main = do
   fileInput <- readFile "./data/day7.txt"
   let parsed = parseInput fileInput in
       case parsed of
-        Right result -> putStrLn ("results: " ++ show (length result)) >> print result
+        --Right result -> putStrLn ("results: " ++ show (length result)) >> print result
+        Right result -> let mat = evalState (buildAdjacencyMatrix result) (Map.empty, []) in do
+          print mat
         Left err -> print err
