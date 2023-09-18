@@ -18,10 +18,8 @@ uniqueScan :: String -> State ProcessingState (Maybe Int)
 uniqueScan [] = return Nothing
 uniqueScan (x:xs) = do
   (pos, window) <- get
-  case unique window of
-    True -> return $ Just pos
-    False -> let newWindow = tail window ++ [x] in
-                 put (pos + 1, newWindow) >> uniqueScan xs
+  (if unique window then return $ Just pos else (let newWindow = tail window ++ [x] in
+                                                     put (pos + 1, newWindow) >> uniqueScan xs))
 
 runScan :: String -> Maybe Int
 runScan str | length str < numOfUnique = Nothing
