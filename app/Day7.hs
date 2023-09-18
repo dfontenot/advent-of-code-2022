@@ -3,12 +3,46 @@ module Main where
 
 import Text.ParserCombinators.Parsec hiding (State)
 import Control.Monad (void)
-import Data.Tree
+import Control.Monad.State
 import Data.List
+import qualified Data.Map.Strict as Map
 
 -- used for parsing only
 data CommandName = ChangeDir | ListDir
 data EntityStartToken = DirToken | FileSizeToken Int
+
+-- used to represent the filesystem tree (as an acyclic graph)
+type VirtualPath = [String] -- head is the deepest part of the path
+data File = File { name :: String, size :: Int }
+data Node = Node { files :: [File], neighbors :: Map.Map VirtualPath Node }
+type AdjMatrix = Map.Map VirtualPath Node
+
+-- some matrix manipulation functions
+emptyNode :: Node
+emptyNode = Node { files = [], neighbors = Map.empty }
+
+addFileToNode :: Node -> Entity -> Node
+addFileToNode n (Dir _) = n
+addFileToNode Node { files=files_, neighbors=neighbors_ } (Fn size_ fn) = Node { files = File { name=fn, size=size_ }:files_, neighbors=neighbors_ }
+
+addFilesToNode :: Node -> [Entity] -> Node
+addFilesToNode = foldl addFileToNode
+
+addFilesAtPath :: AdjMatrix -> VirtualPath -> [Entity] -> AdjMatrix
+addFilesAtPath mat path entities = Map.insert path (addFilesToNode (Map.findWithDefault emptyNode path mat) entities) mat
+
+addEntityToNode :: Node -> VirtualPath -> Entity -> Node
+addEntityToNode Node { files=files_, neighbors=neighbors_ } path (Dir dirName) = Node { files = files_, neighbors=Map.insert (dirName:path) emptyNode neighbors_ }
+addEntityToNode Node { files=files_, neighbors=neighbors_ } path (Fn size_ fn) = Node { files = File { name=fn, size=size_ }:files_, neighbors=neighbors_ }
+
+addEntitiesToNode :: Node -> VirtualPath -> [Entity] -> Node
+addEntitiesToNode node path = foldl (`addEntityToNode` path) node
+
+addEntitiesAtPath :: AdjMatrix -> VirtualPath -> [Entity] -> AdjMatrix
+addEntitiesAtPath mat path entities = Map.insert path (addEntitiesToNode (Map.findWithDefault emptyNode path mat) path entities) mat
+
+-- used for building the adjacency matrix
+type MatrixBuilderState = (AdjMatrix, VirtualPath)
 
 instance Show CommandName where
   show ChangeDir = "cd"
@@ -18,7 +52,7 @@ instance Show EntityStartToken where
   show DirToken = "dir"
   show (FileSizeToken size) = show size
 
--- used to construct the final tree
+-- used to construct the instructions
 data CdDirection = Up | GoToRoot | Down String
 data Entity = Dir String | Fn Int String -- directory with name, or file name with size
 data Command = Cd CdDirection | Ls [Entity]
@@ -111,6 +145,22 @@ commandsFile = commandWithOutput `endBy` newlineOrEof
 
 parseInput :: String -> Either ParseError Parsed
 parseInput = parse commandsFile "day7.txt" -- 2nd arg is just the filename to use in parseerror s
+
+buildAdjacencyMatrix :: Parsed -> State MatrixBuilderState AdjMatrix
+buildAdjacencyMatrix [] = get >>= \ (m, _) -> return m
+buildAdjacencyMatrix (Cd GoToRoot:rst) = gets fst >>= \m -> put (m, [show GoToRoot]) >> buildAdjacencyMatrix rst
+buildAdjacencyMatrix (Cd Up:rst) = get >>= \ (m, path) -> put (m, tail path) >> buildAdjacencyMatrix rst
+buildAdjacencyMatrix (Cd (Down dirName):rst) = do
+  (map, path) <- get
+  let newPath = dirName:path in do
+    case Map.lookup newPath map of
+      Nothing -> put (Map.insert newPath emptyNode map, newPath)
+      Just _ -> put (map, newPath)
+    buildAdjacencyMatrix rst
+buildAdjacencyMatrix (Ls entities:rst) = do
+  (map, path) <- get
+  put (addEntitiesAtPath map path entities, path)
+  buildAdjacencyMatrix rst
 
 main :: IO ()
 main = do
