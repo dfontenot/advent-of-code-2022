@@ -15,15 +15,20 @@ data EntityStartToken = DirToken | FileSizeToken Int
 type VirtualPath = [String] -- head is the deepest part of the path
 data File = File { name :: String, size :: Int }
 data Node = Node { files :: [File], neighbors :: Map.Map VirtualPath Node }
-type AdjMatrix = Map.Map VirtualPath Node
+newtype AdjMatrix = AdjMatrix { asPathMap :: Map.Map VirtualPath Node }
 
 instance Show File where
   show File { name=name_, size=size_ } = "<File " ++ name_ ++ " size " ++ show size_ ++ ">"
 
 instance Show Node where
-  show Node { files=files_, neighbors=neighbors_ } = "<Contents\n" ++
+  show Node { files=files_, neighbors=neighbors_ } = "<Node\n" ++
     foldl (\acc file -> show file ++ "\n" ++ acc) "" files_ ++ "\n" ++
       foldl (\acc neighbor -> intercalate "/" (reverse neighbor) ++ "\n" ++ acc) "" (Map.keys neighbors_) ++ "\n>"
+
+instance Show AdjMatrix where
+  show (AdjMatrix mat) = "<AdjMatrix\n" ++
+    foldl (\acc (k, v) -> intercalate "/" (reverse k) ++ " -> " ++ show v ++ "\n" ++ acc) "" (Map.toList mat) ++ "\n>"
+
 
 -- some matrix manipulation functions
 emptyNode :: Node
@@ -37,7 +42,7 @@ addFilesToNode :: Node -> [Entity] -> Node
 addFilesToNode = foldl addFileToNode
 
 addFilesAtPath :: AdjMatrix -> VirtualPath -> [Entity] -> AdjMatrix
-addFilesAtPath mat path entities = Map.insert path (addFilesToNode (Map.findWithDefault emptyNode path mat) entities) mat
+addFilesAtPath (AdjMatrix mat) path entities = AdjMatrix $ Map.insert path (addFilesToNode (Map.findWithDefault emptyNode path mat) entities) mat
 
 addEntityToNode :: Node -> VirtualPath -> Entity -> Node
 addEntityToNode Node { files=files_, neighbors=neighbors_ } path (Dir dirName) = Node { files = files_, neighbors=Map.insert (dirName:path) emptyNode neighbors_ }
@@ -47,7 +52,7 @@ addEntitiesToNode :: Node -> VirtualPath -> [Entity] -> Node
 addEntitiesToNode node path = foldl (`addEntityToNode` path) node
 
 addEntitiesAtPath :: AdjMatrix -> VirtualPath -> [Entity] -> AdjMatrix
-addEntitiesAtPath mat path entities = Map.insert path (addEntitiesToNode (Map.findWithDefault emptyNode path mat) path entities) mat
+addEntitiesAtPath (AdjMatrix mat) path entities = AdjMatrix $ Map.insert path (addEntitiesToNode (Map.findWithDefault emptyNode path mat) path entities) mat
 
 -- used for building the adjacency matrix
 type MatrixBuilderState = (AdjMatrix, VirtualPath)
@@ -159,12 +164,13 @@ buildAdjacencyMatrix [] = get >>= \ (m, _) -> return m
 buildAdjacencyMatrix (Cd GoToRoot:rst) = gets fst >>= \m -> put (m, [""]) >> buildAdjacencyMatrix rst
 buildAdjacencyMatrix (Cd Up:rst) = get >>= \ (m, path) -> put (m, tail path) >> buildAdjacencyMatrix rst
 buildAdjacencyMatrix (Cd (Down dirName):rst) = do
-  (mat, path) <- get
+  (mat_, path) <- get
   let newPath = dirName:path in do
-    case Map.lookup newPath mat of
-      Nothing -> put (Map.insert newPath emptyNode mat, newPath)
-      Just _ -> put (mat, newPath)
-    buildAdjacencyMatrix rst
+    let mat = asPathMap mat_ in do
+      case Map.lookup newPath mat of
+        Nothing -> put (AdjMatrix (Map.insert newPath emptyNode mat), newPath)
+        Just _ -> put (AdjMatrix mat, newPath)
+      buildAdjacencyMatrix rst
 buildAdjacencyMatrix (Ls entities:rst) = do
   (mat, path) <- get
   put (addEntitiesAtPath mat path entities, path)
@@ -177,6 +183,6 @@ main = do
   let parsed = parseInput fileInput in
       case parsed of
         --Right result -> putStrLn ("results: " ++ show (length result)) >> print result
-        Right result -> let mat = evalState (buildAdjacencyMatrix result) (Map.empty, []) in do
+        Right result -> let mat = evalState (buildAdjacencyMatrix result) (AdjMatrix Map.empty, []) in do
           print mat
         Left err -> print err
