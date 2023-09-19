@@ -12,7 +12,7 @@ data CommandName = ChangeDir | ListDir
 data EntityStartToken = DirToken | FileSizeToken Int
 
 -- used to represent the filesystem tree (as an acyclic graph)
-type VirtualPath = [String] -- head is the deepest part of the path
+newtype VirtualPath = VirtualPath { asPathParts :: [String] } deriving (Eq, Ord) -- head is the deepest part of the path
 data File = File { name :: String, size :: Int }
 data Node = Node { files :: [File], neighbors :: Map.Map VirtualPath Node }
 newtype AdjMatrix = AdjMatrix { asPathMap :: Map.Map VirtualPath Node }
@@ -23,12 +23,23 @@ instance Show File where
 instance Show Node where
   show Node { files=files_, neighbors=neighbors_ } = "<Node\n" ++
     foldl (\acc file -> show file ++ "\n" ++ acc) "" files_ ++ "\n" ++
-      foldl (\acc neighbor -> intercalate "/" (reverse neighbor) ++ "\n" ++ acc) "" (Map.keys neighbors_) ++ "\n>"
+      foldl (\acc neighbor -> show neighbor ++ "\n" ++ acc) "" (Map.keys neighbors_) ++ "\n>"
 
 instance Show AdjMatrix where
   show (AdjMatrix mat) = "<AdjMatrix\n" ++
-    foldl (\acc (k, v) -> intercalate "/" (reverse k) ++ " -> " ++ show v ++ "\n" ++ acc) "" (Map.toList mat) ++ "\n>"
+    foldl (\acc (k, v) -> show k ++ " -> " ++ show v ++ "\n" ++ acc) "" (Map.toList mat) ++ "\n>"
 
+instance Show VirtualPath where
+  show (VirtualPath path) = intercalate "/" (reverse path)
+
+rootPath :: VirtualPath
+rootPath = VirtualPath [""]
+
+cdUpPath :: VirtualPath -> VirtualPath
+cdUpPath (VirtualPath path) = VirtualPath $ tail path
+
+cdDirPath :: VirtualPath -> String -> VirtualPath
+cdDirPath (VirtualPath path) dir = VirtualPath $ dir:path
 
 -- some matrix manipulation functions
 emptyNode :: Node
@@ -45,8 +56,10 @@ addFilesAtPath :: AdjMatrix -> VirtualPath -> [Entity] -> AdjMatrix
 addFilesAtPath (AdjMatrix mat) path entities = AdjMatrix $ Map.insert path (addFilesToNode (Map.findWithDefault emptyNode path mat) entities) mat
 
 addEntityToNode :: Node -> VirtualPath -> Entity -> Node
-addEntityToNode Node { files=files_, neighbors=neighbors_ } path (Dir dirName) = Node { files = files_, neighbors=Map.insert (dirName:path) emptyNode neighbors_ }
-addEntityToNode Node { files=files_, neighbors=neighbors_ } path (Fn size_ fn) = Node { files = File { name=fn, size=size_ }:files_, neighbors=neighbors_ }
+addEntityToNode Node { files=files_, neighbors=neighbors_ } path (Dir dirName) =
+  Node { files = files_, neighbors=Map.insert (cdDirPath path dirName) emptyNode neighbors_ }
+addEntityToNode Node { files=files_, neighbors=neighbors_ } path (Fn size_ fn) =
+  Node { files = File { name=fn, size=size_ }:files_, neighbors=neighbors_ }
 
 addEntitiesToNode :: Node -> VirtualPath -> [Entity] -> Node
 addEntitiesToNode node path = foldl (`addEntityToNode` path) node
@@ -161,11 +174,11 @@ parseInput = parse commandsFile "day7.txt" -- 2nd arg is just the filename to us
 
 buildAdjacencyMatrix :: Parsed -> State MatrixBuilderState AdjMatrix
 buildAdjacencyMatrix [] = get >>= \ (m, _) -> return m
-buildAdjacencyMatrix (Cd GoToRoot:rst) = gets fst >>= \m -> put (m, [""]) >> buildAdjacencyMatrix rst
-buildAdjacencyMatrix (Cd Up:rst) = get >>= \ (m, path) -> put (m, tail path) >> buildAdjacencyMatrix rst
+buildAdjacencyMatrix (Cd GoToRoot:rst) = gets fst >>= \m -> put (m, rootPath) >> buildAdjacencyMatrix rst
+buildAdjacencyMatrix (Cd Up:rst) = get >>= \ (m, path) -> put (m, cdUpPath path) >> buildAdjacencyMatrix rst
 buildAdjacencyMatrix (Cd (Down dirName):rst) = do
   (mat_, path) <- get
-  let newPath = dirName:path in do
+  let newPath = cdDirPath path dirName in do
     let mat = asPathMap mat_ in do
       case Map.lookup newPath mat of
         Nothing -> put (AdjMatrix (Map.insert newPath emptyNode mat), newPath)
@@ -183,6 +196,6 @@ main = do
   let parsed = parseInput fileInput in
       case parsed of
         --Right result -> putStrLn ("results: " ++ show (length result)) >> print result
-        Right result -> let mat = evalState (buildAdjacencyMatrix result) (AdjMatrix Map.empty, []) in do
+        Right result -> let mat = evalState (buildAdjacencyMatrix result) (AdjMatrix Map.empty, rootPath) in do
           print mat
         Left err -> print err
