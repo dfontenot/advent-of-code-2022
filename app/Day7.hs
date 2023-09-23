@@ -5,9 +5,12 @@ module Main where
 import Text.ParserCombinators.Parsec hiding (State)
 import Control.Monad (void)
 import Control.Monad.State
+import Control.Monad.Writer
 import Data.List
+import Data.Maybe (fromJust)
 import qualified Data.Map.Strict as Map
-import Data.Graph (Graph, Vertex, graphFromEdges)
+import Data.Graph (Graph, Tree (Node), Vertex, dfs, graphFromEdges)
+import Data.Semigroup (Sum)
 
 -- used for parsing only
 data CommandName = ChangeDir | ListDir
@@ -16,16 +19,19 @@ data EntityStartToken = DirToken | FileSizeToken Int
 -- used to represent the filesystem tree (as an acyclic graph)
 newtype VirtualPath = VirtualPath { asPathParts :: [String] } deriving (Eq, Ord) -- head is the deepest part of the path
 data File = File { name :: String, size :: Int }
-data Node = Node { files :: [File], neighbors :: [VirtualPath] }
-type NodeMap = Map.Map VirtualPath Node
+data GraphNode = GraphNode { files :: [File], neighbors :: [VirtualPath] }
+type NodeMap = Map.Map VirtualPath GraphNode
+type FromVertexFunction = Vertex -> ([File], VirtualPath, [VirtualPath])
+type ToVertexFunction = VirtualPath -> Maybe Vertex
+type FileGraph = (Graph, FromVertexFunction, ToVertexFunction)
 --data Node = Node { files :: [File], neighbors :: Map.Map VirtualPath Node }
 --newtype AdjMatrix = AdjMatrix { asPathMap :: Map.Map VirtualPath Node }
 
 instance Show File where
   show File { name=name_, size=size_ } = "<File " ++ name_ ++ " size " ++ show size_ ++ ">"
 
-instance Show Node where
-  show Node { files=files_, neighbors=neighbors_ } = "<Node\n" ++
+instance Show GraphNode where
+  show GraphNode { files=files_, neighbors=neighbors_ } = "<Node\n" ++
     foldl (\acc file -> show file ++ "\n" ++ acc) "" files_ ++ "\n" ++
       foldl (\acc neighbor -> show neighbor ++ "\n" ++ acc) "" neighbors_ ++ "\n>"
 --
@@ -44,38 +50,6 @@ cdUpPath (VirtualPath path) = VirtualPath $ tail path
 
 cdDirPath :: VirtualPath -> String -> VirtualPath
 cdDirPath (VirtualPath path) dir = VirtualPath $ dir:path
-
--- some matrix manipulation functions
--- emptyNode :: Node
--- emptyNode = Node { files = [], neighbors = Map.empty }
---
--- addFileToNode :: Node -> Entity -> Node
--- addFileToNode n (Dir _) = n
--- addFileToNode Node { files=files_, neighbors=neighbors_ } (Fn size_ fn) = Node { files = File { name=fn, size=size_ }:files_, neighbors=neighbors_ }
---
--- addFilesToNode :: Node -> [Entity] -> Node
--- addFilesToNode = foldl addFileToNode
---
--- addFilesAtPath :: AdjMatrix -> VirtualPath -> [Entity] -> AdjMatrix
--- addFilesAtPath (AdjMatrix mat) path entities = AdjMatrix $ Map.insert path (addFilesToNode (Map.findWithDefault emptyNode path mat) entities) mat
---
--- addEntityToNode :: Node -> VirtualPath -> Entity -> Node
--- addEntityToNode Node { files=files_, neighbors=neighbors_ } path (Dir dirName) =
---   Node { files = files_, neighbors=Map.insert (cdDirPath path dirName) emptyNode neighbors_ }
--- addEntityToNode Node { files=files_, neighbors=neighbors_ } path (Fn size_ fn) =
---   Node { files = File { name=fn, size=size_ }:files_, neighbors=neighbors_ }
---
--- addEntitiesToNode :: Node -> VirtualPath -> [Entity] -> Node
--- addEntitiesToNode node path = foldl (`addEntityToNode` path) node
---
--- addEntitiesAtPath :: AdjMatrix -> VirtualPath -> [Entity] -> AdjMatrix
--- addEntitiesAtPath (AdjMatrix mat) path entities = AdjMatrix $ Map.insert path (addEntitiesToNode (Map.findWithDefault emptyNode path mat) path entities) mat
-
--- used for building the adjacency matrix
---type MatrixBuilderState = (AdjMatrix, VirtualPath)
-
--- used for traversing the matrix
---type CollectDirSizeState = (AdjMatrix, [Int])
 
 instance Show CommandName where
   show ChangeDir = "cd"
@@ -187,17 +161,29 @@ collectFiles cmds = collectFiles' cmds Map.empty
         collectFiles' (Cd Up:rst) files = get >>= \p -> put (cdUpPath p) >> collectFiles' rst files
         collectFiles' (Cd (Down dirName):rst) files = get >>= \p -> put (cdDirPath p dirName) >> collectFiles' rst files
         collectFiles' (Ls entities:rst) files = get >>= \p -> collectFiles' rst $ Map.insert p (collectLsContents p entities) files
-        collectLsContents :: VirtualPath -> [Entity] -> Node
+        collectLsContents :: VirtualPath -> [Entity] -> GraphNode
         collectLsContents path entities = collectLsContents' path entities ([], [])
-        collectLsContents' :: VirtualPath -> [Entity] -> ([File], [VirtualPath]) -> Node
-        collectLsContents' path [] (files, neighbors) = Node {files=files, neighbors=neighbors}
+        collectLsContents' :: VirtualPath -> [Entity] -> ([File], [VirtualPath]) -> GraphNode
+        collectLsContents' path [] (files, neighbors) = GraphNode {files=files, neighbors=neighbors}
         collectLsContents' path ((Fn size name):rst) (files, neighbors) = collectLsContents' path rst (File {name=name, size=size}:files, neighbors)
         collectLsContents' path ((Dir name):rst) (files, neighbors) = collectLsContents' path rst (files, cdDirPath path name:neighbors)
 
-graphFromNodeMap :: NodeMap -> (Graph, Vertex -> ([File], VirtualPath, [VirtualPath]), VirtualPath -> Maybe Vertex)
+graphFromNodeMap :: NodeMap -> FileGraph
 graphFromNodeMap nm = graphFromEdges edges
   where
     edges = map (\ (k, v) -> (files v, k, neighbors v)) $ Map.toList nm
+
+fsTree :: FileGraph -> Tree Vertex
+fsTree (graph, _, toVertexFnc) = head $ dfs graph [fromJust (toVertexFnc rootPath)]
+
+filesFromVertex :: FromVertexFunction -> Vertex -> [File]
+filesFromVertex fnc v = let (files, _, _) = fnc v in files
+
+walkFsTree :: FileGraph -> Writer (Sum Int) Int
+walkFsTree (graph, fromVertexFnc, toVertexFnc) = walkFsTree' $ fsTree (graph, fromVertexFnc, toVertexFnc)
+  where
+    walkFsTree' :: Tree Vertex -> Writer (Sum Int) Int
+    walkFsTree' (Node filesVertex []) = return $ foldl (\a f -> a + size f) 0 (filesFromVertex fromVertexFnc filesVertex)
 
 main :: IO ()
 main = do
