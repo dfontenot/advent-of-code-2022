@@ -7,6 +7,7 @@ import Control.Monad (void)
 import Control.Monad.State
 import Data.List
 import qualified Data.Map.Strict as Map
+import Data.Graph (Graph, Vertex, graphFromEdges)
 
 -- used for parsing only
 data CommandName = ChangeDir | ListDir
@@ -23,10 +24,10 @@ type NodeMap = Map.Map VirtualPath Node
 instance Show File where
   show File { name=name_, size=size_ } = "<File " ++ name_ ++ " size " ++ show size_ ++ ">"
 
--- instance Show Node where
---   show Node { files=files_, neighbors=neighbors_ } = "<Node\n" ++
---     foldl (\acc file -> show file ++ "\n" ++ acc) "" files_ ++ "\n" ++
---       foldl (\acc neighbor -> show neighbor ++ "\n" ++ acc) "" (Map.keys neighbors_) ++ "\n>"
+instance Show Node where
+  show Node { files=files_, neighbors=neighbors_ } = "<Node\n" ++
+    foldl (\acc file -> show file ++ "\n" ++ acc) "" files_ ++ "\n" ++
+      foldl (\acc neighbor -> show neighbor ++ "\n" ++ acc) "" neighbors_ ++ "\n>"
 --
 -- instance Show AdjMatrix where
 --   show (AdjMatrix mat) = "<AdjMatrix\n" ++
@@ -192,55 +193,11 @@ collectFiles cmds = collectFiles' cmds Map.empty
         collectLsContents' path [] (files, neighbors) = Node {files=files, neighbors=neighbors}
         collectLsContents' path ((Fn size name):rst) (files, neighbors) = collectLsContents' path rst (File {name=name, size=size}:files, neighbors)
         collectLsContents' path ((Dir name):rst) (files, neighbors) = collectLsContents' path rst (files, cdDirPath path name:neighbors)
-        -- collectFiles' (Ls entities:rst) files = get >>= \p -> collectFiles' rst $ Map.insert p (foldl (collectLsContents p) [] entities) files
-        -- collectLsContents :: VirtualPath -> Node -> Entity -> Node
-        -- collectLsContents path nodeList (Fn size name) = (File {name=name, size=size}):nodeList
-        -- collectLsContents path nodeList _ = nodeList
 
--- buildAdjacencyMatrix :: Parsed -> State MatrixBuilderState AdjMatrix
--- buildAdjacencyMatrix [] = get >>= \ (m, _) -> return m
--- buildAdjacencyMatrix (Cd GoToRoot:rst) = gets fst >>= \m -> put (m, rootPath) >> buildAdjacencyMatrix rst
--- buildAdjacencyMatrix (Cd Up:rst) = get >>= \ (m, path) -> put (m, cdUpPath path) >> buildAdjacencyMatrix rst
--- buildAdjacencyMatrix (Cd (Down dirName):rst) = do
---   (mat_, path) <- get
---   let newPath = cdDirPath path dirName in do
---     let mat = asPathMap mat_ in do
---       case Map.lookup newPath mat of
---         Nothing -> put (AdjMatrix (Map.insert newPath emptyNode mat), newPath)
---         Just _ -> put (AdjMatrix mat, newPath)
---       buildAdjacencyMatrix rst
--- buildAdjacencyMatrix (Ls entities:rst) = do
---   (mat, path) <- get
---   put (addEntitiesAtPath mat path entities, path)
---   buildAdjacencyMatrix rst
-
--- collectDirSize :: AdjMatrix -> [Int]
--- collectDirSize mat = evalState (collectDirSize' (rootPath Map.! asPathMap mat)) (mat, [])
-
--- collectDirSize' :: Node -> State CollectDirSizeState [Int]
--- --collectDirSize' Node { files=files_, neighbors=[] } = return $ map size files_
--- collectDirSize' Node { files=files_, neighbors=neighbors_ } = if Map.size neighbors_ == 0 then return (map size files_) else recurse (Map.keys neighbors_)
---   where
---     recurse [] = return $ map size files_
---     recurse (x:xs) = do
---       mat_ <- gets fst
---       let mat = asPathMap mat_ in do
---         collectDirSize' (x Map.! mat)
--- -- collectDirSize' loc = do
--- --   mat_ <- gets fst
--- --   let mat = asPathMap mat_ in do
--- --     case Map.lookup loc mat of
--- --       Just neighbors -> _
--- --       Nothing -> return []
--- -- collectDirSize' :: VirtualPath -> [VirtualPath] -> State CollectDirSizeState [Int]
--- -- collectDirSize' loc [] = do
--- --   mat_ <- gets fst
--- --   let mat = asPathMap mat_ in do
--- --       return $ map size $ files $ mat Map.! loc
--- -- collectDirSize' loc (neighbor:rst) = do
--- --   mat_ <- gets fst
--- --   let mat = asPathMap mat_ in do
--- --     collectDirSize'
+graphFromNodeMap :: NodeMap -> (Graph, Vertex -> ([File], VirtualPath, [VirtualPath]), VirtualPath -> Maybe Vertex)
+graphFromNodeMap nm = graphFromEdges edges
+  where
+    edges = map (\ (k, v) -> (files v, k, neighbors v)) $ Map.toList nm
 
 main :: IO ()
 main = do
@@ -249,6 +206,6 @@ main = do
   let parsed = parseInput fileInput in
       case parsed of
         --Right result -> putStrLn ("results: " ++ show (length result)) >> print result
-        Right result -> let mat = evalState (buildAdjacencyMatrix result) (AdjMatrix Map.empty, rootPath) in do
-          print mat
+        Right result -> let graph = evalState (collectFiles result) rootPath in do
+          print graph
         Left err -> print err
