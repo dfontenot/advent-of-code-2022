@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Main where
 
 import Text.ParserCombinators.Parsec hiding (State)
@@ -14,20 +15,22 @@ data EntityStartToken = DirToken | FileSizeToken Int
 -- used to represent the filesystem tree (as an acyclic graph)
 newtype VirtualPath = VirtualPath { asPathParts :: [String] } deriving (Eq, Ord) -- head is the deepest part of the path
 data File = File { name :: String, size :: Int }
-data Node = Node { files :: [File], neighbors :: Map.Map VirtualPath Node }
-newtype AdjMatrix = AdjMatrix { asPathMap :: Map.Map VirtualPath Node }
+type Node = [File]
+type NodeMap = Map.Map VirtualPath Node
+--data Node = Node { files :: [File], neighbors :: Map.Map VirtualPath Node }
+--newtype AdjMatrix = AdjMatrix { asPathMap :: Map.Map VirtualPath Node }
 
 instance Show File where
   show File { name=name_, size=size_ } = "<File " ++ name_ ++ " size " ++ show size_ ++ ">"
 
-instance Show Node where
-  show Node { files=files_, neighbors=neighbors_ } = "<Node\n" ++
-    foldl (\acc file -> show file ++ "\n" ++ acc) "" files_ ++ "\n" ++
-      foldl (\acc neighbor -> show neighbor ++ "\n" ++ acc) "" (Map.keys neighbors_) ++ "\n>"
-
-instance Show AdjMatrix where
-  show (AdjMatrix mat) = "<AdjMatrix\n" ++
-    foldl (\acc (k, v) -> show k ++ " -> " ++ show v ++ "\n" ++ acc) "" (Map.toList mat) ++ "\n>"
+-- instance Show Node where
+--   show Node { files=files_, neighbors=neighbors_ } = "<Node\n" ++
+--     foldl (\acc file -> show file ++ "\n" ++ acc) "" files_ ++ "\n" ++
+--       foldl (\acc neighbor -> show neighbor ++ "\n" ++ acc) "" (Map.keys neighbors_) ++ "\n>"
+--
+-- instance Show AdjMatrix where
+--   show (AdjMatrix mat) = "<AdjMatrix\n" ++
+--     foldl (\acc (k, v) -> show k ++ " -> " ++ show v ++ "\n" ++ acc) "" (Map.toList mat) ++ "\n>"
 
 instance Show VirtualPath where
   show (VirtualPath path) = intercalate "/" (reverse path)
@@ -42,33 +45,36 @@ cdDirPath :: VirtualPath -> String -> VirtualPath
 cdDirPath (VirtualPath path) dir = VirtualPath $ dir:path
 
 -- some matrix manipulation functions
-emptyNode :: Node
-emptyNode = Node { files = [], neighbors = Map.empty }
-
-addFileToNode :: Node -> Entity -> Node
-addFileToNode n (Dir _) = n
-addFileToNode Node { files=files_, neighbors=neighbors_ } (Fn size_ fn) = Node { files = File { name=fn, size=size_ }:files_, neighbors=neighbors_ }
-
-addFilesToNode :: Node -> [Entity] -> Node
-addFilesToNode = foldl addFileToNode
-
-addFilesAtPath :: AdjMatrix -> VirtualPath -> [Entity] -> AdjMatrix
-addFilesAtPath (AdjMatrix mat) path entities = AdjMatrix $ Map.insert path (addFilesToNode (Map.findWithDefault emptyNode path mat) entities) mat
-
-addEntityToNode :: Node -> VirtualPath -> Entity -> Node
-addEntityToNode Node { files=files_, neighbors=neighbors_ } path (Dir dirName) =
-  Node { files = files_, neighbors=Map.insert (cdDirPath path dirName) emptyNode neighbors_ }
-addEntityToNode Node { files=files_, neighbors=neighbors_ } path (Fn size_ fn) =
-  Node { files = File { name=fn, size=size_ }:files_, neighbors=neighbors_ }
-
-addEntitiesToNode :: Node -> VirtualPath -> [Entity] -> Node
-addEntitiesToNode node path = foldl (`addEntityToNode` path) node
-
-addEntitiesAtPath :: AdjMatrix -> VirtualPath -> [Entity] -> AdjMatrix
-addEntitiesAtPath (AdjMatrix mat) path entities = AdjMatrix $ Map.insert path (addEntitiesToNode (Map.findWithDefault emptyNode path mat) path entities) mat
+-- emptyNode :: Node
+-- emptyNode = Node { files = [], neighbors = Map.empty }
+--
+-- addFileToNode :: Node -> Entity -> Node
+-- addFileToNode n (Dir _) = n
+-- addFileToNode Node { files=files_, neighbors=neighbors_ } (Fn size_ fn) = Node { files = File { name=fn, size=size_ }:files_, neighbors=neighbors_ }
+--
+-- addFilesToNode :: Node -> [Entity] -> Node
+-- addFilesToNode = foldl addFileToNode
+--
+-- addFilesAtPath :: AdjMatrix -> VirtualPath -> [Entity] -> AdjMatrix
+-- addFilesAtPath (AdjMatrix mat) path entities = AdjMatrix $ Map.insert path (addFilesToNode (Map.findWithDefault emptyNode path mat) entities) mat
+--
+-- addEntityToNode :: Node -> VirtualPath -> Entity -> Node
+-- addEntityToNode Node { files=files_, neighbors=neighbors_ } path (Dir dirName) =
+--   Node { files = files_, neighbors=Map.insert (cdDirPath path dirName) emptyNode neighbors_ }
+-- addEntityToNode Node { files=files_, neighbors=neighbors_ } path (Fn size_ fn) =
+--   Node { files = File { name=fn, size=size_ }:files_, neighbors=neighbors_ }
+--
+-- addEntitiesToNode :: Node -> VirtualPath -> [Entity] -> Node
+-- addEntitiesToNode node path = foldl (`addEntityToNode` path) node
+--
+-- addEntitiesAtPath :: AdjMatrix -> VirtualPath -> [Entity] -> AdjMatrix
+-- addEntitiesAtPath (AdjMatrix mat) path entities = AdjMatrix $ Map.insert path (addEntitiesToNode (Map.findWithDefault emptyNode path mat) path entities) mat
 
 -- used for building the adjacency matrix
-type MatrixBuilderState = (AdjMatrix, VirtualPath)
+--type MatrixBuilderState = (AdjMatrix, VirtualPath)
+
+-- used for traversing the matrix
+--type CollectDirSizeState = (AdjMatrix, [Int])
 
 instance Show CommandName where
   show ChangeDir = "cd"
@@ -172,22 +178,62 @@ commandsFile = commandWithOutput `endBy` newlineOrEof
 parseInput :: String -> Either ParseError Parsed
 parseInput = parse commandsFile "day7.txt" -- 2nd arg is just the filename to use in parseerror s
 
-buildAdjacencyMatrix :: Parsed -> State MatrixBuilderState AdjMatrix
-buildAdjacencyMatrix [] = get >>= \ (m, _) -> return m
-buildAdjacencyMatrix (Cd GoToRoot:rst) = gets fst >>= \m -> put (m, rootPath) >> buildAdjacencyMatrix rst
-buildAdjacencyMatrix (Cd Up:rst) = get >>= \ (m, path) -> put (m, cdUpPath path) >> buildAdjacencyMatrix rst
-buildAdjacencyMatrix (Cd (Down dirName):rst) = do
-  (mat_, path) <- get
-  let newPath = cdDirPath path dirName in do
-    let mat = asPathMap mat_ in do
-      case Map.lookup newPath mat of
-        Nothing -> put (AdjMatrix (Map.insert newPath emptyNode mat), newPath)
-        Just _ -> put (AdjMatrix mat, newPath)
-      buildAdjacencyMatrix rst
-buildAdjacencyMatrix (Ls entities:rst) = do
-  (mat, path) <- get
-  put (addEntitiesAtPath mat path entities, path)
-  buildAdjacencyMatrix rst
+collectFiles :: Parsed -> State VirtualPath NodeMap
+collectFiles cmds = collectFiles' cmds Map.empty
+  where collectFiles' :: Parsed -> NodeMap -> State VirtualPath NodeMap
+        collectFiles' [] files = return files
+        collectFiles' (Cd GoToRoot:rst) files = put rootPath >> collectFiles' rst files
+        collectFiles' (Cd Up:rst) files = get >>= \p -> put (cdUpPath p) >> collectFiles' rst files
+        collectFiles' (Cd (Down dirName):rst) files = get >>= \p -> put (cdDirPath p dirName) >> collectFiles' rst files
+        collectFiles' (Ls entities:rst) files = get >>= \p -> collectFiles' rst $ Map.insert p (foldl collectLsContents [] entities) files
+        collectLsContents :: Node -> Entity -> Node
+        collectLsContents nodeList (Fn size name) = (File {name=name, size=size}):nodeList
+        collectLsContents nodeList _ = nodeList
+
+-- buildAdjacencyMatrix :: Parsed -> State MatrixBuilderState AdjMatrix
+-- buildAdjacencyMatrix [] = get >>= \ (m, _) -> return m
+-- buildAdjacencyMatrix (Cd GoToRoot:rst) = gets fst >>= \m -> put (m, rootPath) >> buildAdjacencyMatrix rst
+-- buildAdjacencyMatrix (Cd Up:rst) = get >>= \ (m, path) -> put (m, cdUpPath path) >> buildAdjacencyMatrix rst
+-- buildAdjacencyMatrix (Cd (Down dirName):rst) = do
+--   (mat_, path) <- get
+--   let newPath = cdDirPath path dirName in do
+--     let mat = asPathMap mat_ in do
+--       case Map.lookup newPath mat of
+--         Nothing -> put (AdjMatrix (Map.insert newPath emptyNode mat), newPath)
+--         Just _ -> put (AdjMatrix mat, newPath)
+--       buildAdjacencyMatrix rst
+-- buildAdjacencyMatrix (Ls entities:rst) = do
+--   (mat, path) <- get
+--   put (addEntitiesAtPath mat path entities, path)
+--   buildAdjacencyMatrix rst
+
+-- collectDirSize :: AdjMatrix -> [Int]
+-- collectDirSize mat = evalState (collectDirSize' (rootPath Map.! asPathMap mat)) (mat, [])
+
+-- collectDirSize' :: Node -> State CollectDirSizeState [Int]
+-- --collectDirSize' Node { files=files_, neighbors=[] } = return $ map size files_
+-- collectDirSize' Node { files=files_, neighbors=neighbors_ } = if Map.size neighbors_ == 0 then return (map size files_) else recurse (Map.keys neighbors_)
+--   where
+--     recurse [] = return $ map size files_
+--     recurse (x:xs) = do
+--       mat_ <- gets fst
+--       let mat = asPathMap mat_ in do
+--         collectDirSize' (x Map.! mat)
+-- -- collectDirSize' loc = do
+-- --   mat_ <- gets fst
+-- --   let mat = asPathMap mat_ in do
+-- --     case Map.lookup loc mat of
+-- --       Just neighbors -> _
+-- --       Nothing -> return []
+-- -- collectDirSize' :: VirtualPath -> [VirtualPath] -> State CollectDirSizeState [Int]
+-- -- collectDirSize' loc [] = do
+-- --   mat_ <- gets fst
+-- --   let mat = asPathMap mat_ in do
+-- --       return $ map size $ files $ mat Map.! loc
+-- -- collectDirSize' loc (neighbor:rst) = do
+-- --   mat_ <- gets fst
+-- --   let mat = asPathMap mat_ in do
+-- --     collectDirSize'
 
 main :: IO ()
 main = do
