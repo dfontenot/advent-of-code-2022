@@ -15,7 +15,7 @@ data EntityStartToken = DirToken | FileSizeToken Int
 -- used to represent the filesystem tree (as an acyclic graph)
 newtype VirtualPath = VirtualPath { asPathParts :: [String] } deriving (Eq, Ord) -- head is the deepest part of the path
 data File = File { name :: String, size :: Int }
-type Node = [File]
+data Node = Node { files :: [File], neighbors :: [VirtualPath] }
 type NodeMap = Map.Map VirtualPath Node
 --data Node = Node { files :: [File], neighbors :: Map.Map VirtualPath Node }
 --newtype AdjMatrix = AdjMatrix { asPathMap :: Map.Map VirtualPath Node }
@@ -185,10 +185,17 @@ collectFiles cmds = collectFiles' cmds Map.empty
         collectFiles' (Cd GoToRoot:rst) files = put rootPath >> collectFiles' rst files
         collectFiles' (Cd Up:rst) files = get >>= \p -> put (cdUpPath p) >> collectFiles' rst files
         collectFiles' (Cd (Down dirName):rst) files = get >>= \p -> put (cdDirPath p dirName) >> collectFiles' rst files
-        collectFiles' (Ls entities:rst) files = get >>= \p -> collectFiles' rst $ Map.insert p (foldl collectLsContents [] entities) files
-        collectLsContents :: Node -> Entity -> Node
-        collectLsContents nodeList (Fn size name) = (File {name=name, size=size}):nodeList
-        collectLsContents nodeList _ = nodeList
+        collectFiles' (Ls entities:rst) files = get >>= \p -> collectFiles' rst $ Map.insert p (collectLsContents p entities) files
+        collectLsContents :: VirtualPath -> [Entity] -> Node
+        collectLsContents path entities = collectLsContents' path entities ([], [])
+        collectLsContents' :: VirtualPath -> [Entity] -> ([File], [VirtualPath]) -> Node
+        collectLsContents' path [] (files, neighbors) = Node {files=files, neighbors=neighbors}
+        collectLsContents' path ((Fn size name):rst) (files, neighbors) = collectLsContents' path rst (File {name=name, size=size}:files, neighbors)
+        collectLsContents' path ((Dir name):rst) (files, neighbors) = collectLsContents' path rst (files, cdDirPath path name:neighbors)
+        -- collectFiles' (Ls entities:rst) files = get >>= \p -> collectFiles' rst $ Map.insert p (foldl (collectLsContents p) [] entities) files
+        -- collectLsContents :: VirtualPath -> Node -> Entity -> Node
+        -- collectLsContents path nodeList (Fn size name) = (File {name=name, size=size}):nodeList
+        -- collectLsContents path nodeList _ = nodeList
 
 -- buildAdjacencyMatrix :: Parsed -> State MatrixBuilderState AdjMatrix
 -- buildAdjacencyMatrix [] = get >>= \ (m, _) -> return m
