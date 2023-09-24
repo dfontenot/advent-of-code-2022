@@ -3,7 +3,7 @@
 module Main where
 
 import Text.ParserCombinators.Parsec hiding (State)
-import Control.Monad (void)
+import Control.Monad (void, foldM)
 import Control.Monad.State
 import Control.Monad.Writer
 import Data.List
@@ -24,8 +24,6 @@ type NodeMap = Map.Map VirtualPath GraphNode
 type FromVertexFunction = Vertex -> ([File], VirtualPath, [VirtualPath])
 type ToVertexFunction = VirtualPath -> Maybe Vertex
 type FileGraph = (Graph, FromVertexFunction, ToVertexFunction)
---data Node = Node { files :: [File], neighbors :: Map.Map VirtualPath Node }
---newtype AdjMatrix = AdjMatrix { asPathMap :: Map.Map VirtualPath Node }
 
 instance Show File where
   show File { name=name_, size=size_ } = "<File " ++ name_ ++ " size " ++ show size_ ++ ">"
@@ -34,10 +32,6 @@ instance Show GraphNode where
   show GraphNode { files=files_, neighbors=neighbors_ } = "<Node\n" ++
     foldl (\acc file -> show file ++ "\n" ++ acc) "" files_ ++ "\n" ++
       foldl (\acc neighbor -> show neighbor ++ "\n" ++ acc) "" neighbors_ ++ "\n>"
---
--- instance Show AdjMatrix where
---   show (AdjMatrix mat) = "<AdjMatrix\n" ++
---     foldl (\acc (k, v) -> show k ++ " -> " ++ show v ++ "\n" ++ acc) "" (Map.toList mat) ++ "\n>"
 
 instance Show VirtualPath where
   show (VirtualPath path) = intercalate "/" (reverse path)
@@ -179,19 +173,31 @@ fsTree (graph, _, toVertexFnc) = head $ dfs graph [fromJust (toVertexFnc rootPat
 filesFromVertex :: FromVertexFunction -> Vertex -> [File]
 filesFromVertex fnc v = let (files, _, _) = fnc v in files
 
-walkFsTree :: FileGraph -> Writer (Sum Int) Int
+maxDirSize :: Int
+maxDirSize = 100000
+
+walkFsTree :: FileGraph -> Writer [Int] Int
 walkFsTree (graph, fromVertexFnc, toVertexFnc) = walkFsTree' $ fsTree (graph, fromVertexFnc, toVertexFnc)
   where
-    walkFsTree' :: Tree Vertex -> Writer (Sum Int) Int
-    walkFsTree' (Node filesVertex []) = return $ foldl (\a f -> a + size f) 0 (filesFromVertex fromVertexFnc filesVertex)
+    walkFsTree' :: Tree Vertex -> Writer [Int] Int
+    walkFsTree' (Node filesVertex []) = let dirSize = filesSizes filesVertex in
+                                            if dirSize <= maxDirSize then tell [dirSize] >> return dirSize else return dirSize
+    walkFsTree' (Node filesVertex neighbors) = let dirSize = filesSizes filesVertex in do
+      neighborSizes <- foldM (\acc neighbor -> (+) <$> walkFsTree' neighbor <*> pure acc) dirSize neighbors
+      if neighborSizes <= maxDirSize then do
+                                     tell [neighborSizes]
+                                     return neighborSizes
+                                     else return neighborSizes
+    filesSizes filesVertex = foldl (\a f -> a + size f) 0 (filesFromVertex fromVertexFnc filesVertex)
 
 main :: IO ()
 main = do
   putStrLn "go"
-  fileInput <- readFile "./data/day7.txt"
+  fileInput <- readFile "./data/day7-test.txt"
   let parsed = parseInput fileInput in
       case parsed of
-        --Right result -> putStrLn ("results: " ++ show (length result)) >> print result
-        Right result -> let graph = evalState (collectFiles result) rootPath in do
-          print graph
+        Right result -> let nodeMap = evalState (collectFiles result) rootPath in
+                            let fileGraph = graphFromNodeMap nodeMap in
+                                let relevantSizes = execWriter (walkFsTree fileGraph) in do
+                                  print $ sum relevantSizes
         Left err -> print err
