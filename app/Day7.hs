@@ -193,7 +193,7 @@ walkFsTree (graph, fromVertexFnc, toVertexFnc) = walkFsTree' $ fsTree (graph, fr
 main :: IO ()
 main = do
   putStrLn "go"
-  fileInput <- readFile "./data/day7-test.txt"
+  fileInput <- readFile "./data/day7.txt"
   let parsed = parseInput fileInput in
       case parsed of
         Right result -> let nodeMap = evalState (collectFiles result) rootPath in
